@@ -209,9 +209,13 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;
 -- INITIAL SEED DATA
 -- ============================================================================
 
--- Super Admin User
+-- Super Admin Users
 INSERT INTO public.users (name, email, password, pin, role, department, avatar) 
 VALUES ('Atty. Elena Ramos', 'admin@govserve.gov.ph', 'admin123', '123456', 'Super Admin', 'Municipal Executive Office', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80')
+ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, pin = EXCLUDED.pin, role = EXCLUDED.role;
+
+INSERT INTO public.users (name, email, password, pin, role, department, phone, avatar) 
+VALUES ('Municipal Administrator', 'wahtah173@gmail.com', 'Admin1234567!', '123456', 'Super Admin', 'Municipal Executive Office', '+63 917 000 0000', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80')
 ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, pin = EXCLUDED.pin, role = EXCLUDED.role;
 
 -- Demo Citizen User
