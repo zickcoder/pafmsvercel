@@ -2668,23 +2668,7 @@ export async function fetchActivityLogs() {
 export async function loginStaff(email: string, password: string) {
   const cleanEmail = (email || '').toLowerCase().trim();
 
-  // Backend returned non-ok (e.g. 403 role mismatch) — surface that message
-  if (HAS_BACKEND) {
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password }),
-      });
-      const data = await res.json();
-      if (data && data.success) return data;
-      if (!res.ok) return { success: false, message: data.message || 'Invalid credentials.' };
-    } catch (e) {
-      console.warn('Backend login attempt failed, falling back to eProvider DB...', e);
-    }
-  }
-
-  // 2. Query eProvider Cloud Database directly
+  // 1. Query Supabase Database directly (Primary)
   if (HAS_EPROVIDER) {
     try {
       const users = await epGet('users', `email=eq.${encodeURIComponent(cleanEmail)}`);
@@ -2721,7 +2705,22 @@ export async function loginStaff(email: string, password: string) {
         }
       }
     } catch (epErr) {
-      console.warn('eProvider staff login error:', epErr);
+      console.warn('Supabase staff login error:', epErr);
+    }
+  }
+
+  // 2. Secondary fallback: backend API
+  if (HAS_BACKEND) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password }),
+      });
+      const data = await res.json();
+      if (data && data.success) return data;
+    } catch (e) {
+      console.warn('Backend login attempt failed, falling back...', e);
     }
   }
 
