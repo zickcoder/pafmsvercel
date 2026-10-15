@@ -15,32 +15,30 @@ const rawBase = (envApiUrl && !envApiUrl.includes('eprovider.site') && !envApiUr
 const API_BASE = `${rawBase.replace(/\/$/, '')}/api`;
 const HAS_BACKEND = true;
 
-// eProvider (Supabase-compatible) Cloud Database - robust detection with fallbacks
-const EP_URL = 'https://supa.eprovider.site';
-const EP_SCHEMA = 'tenant_3585c0ec474d4b5b9e095046236e3cdb';
+// Supabase Cloud Database (PostgREST API)
+const EP_URL = (
+  env.VITE_SUPABASE_URL ||
+  'https://hxrzgnvzebvhqwewtvxz.supabase.co'
+).replace(/\/$/, '');
+
 const EP_KEY = (
-  env.VITE_EPROVIDER_ANON_KEY ||
-  env.EPROVIDER_ANON_KEY ||
   env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsInByb2plY3RfaWQiOiIzNTg1YzBlYy00NzRkLTRiNWItOWUwOS01MDQ2MjM2ZTNjZGIiLCJpYXQiOjE3ODk1MzAzNzcsImV4cCI6MjEwNTEwNjM3NywiYXVkIjoiZXByb3ZpZGVyLXJlc3QiLCJpc3MiOiJlcHJvdmlkZXItY29udHJvbC1wbGFuZSJ9.xXaonWQzBxlU9RqZd25j4FOc3RIcqcarfJfMx3ofbNo'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4cnpnbnZ6ZWJ2aHF3ZXd0dnh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNjIyMzgsImV4cCI6MjEwNzYzODIzOH0.QkszNeTdAu7NoRAqqChNxkcN5W7sILl5_57vPEVLOE8'
 );
 
 const HAS_EPROVIDER = Boolean(EP_URL && EP_KEY);
-const isDev = Boolean(typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
-const EP_REST = isDev ? '/eprov-rest' : `${EP_URL}/rest`;
-const EP_HEADERS = {
+const EP_REST = `${EP_URL}/rest/v1`;
+const EP_HEADERS: Record<string, string> = {
   'apikey': EP_KEY,
   'Authorization': `Bearer ${EP_KEY}`,
   'Content-Type': 'application/json',
-  'Accept-Profile': EP_SCHEMA,
-  'Content-Profile': EP_SCHEMA,
   'Prefer': 'return=representation'
 };
 
-// Edge Function URL (From Classmate tutorial: calling Edge Function client-side)
+// Edge Function / Serverless API URL
 const EDGE_URL = (
   env.VITE_EDGE_FUNCTION_URL ||
-  (EP_URL ? `${EP_URL}/functions/v1/330a2e7808deec92591a/api` : '')
+  (EP_URL ? `${EP_URL}/functions/v1` : '')
 );
 
 async function fastFetch(url: string, options: RequestInit = {}, timeoutMs = 2500): Promise<Response> {
