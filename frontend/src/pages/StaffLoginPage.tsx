@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import emailjs from '@emailjs/browser';
+import { broadcastAuth } from '../lib/authSync';
 import { 
   loginStaff, 
   getLockoutTimeRemaining, 
@@ -357,6 +358,7 @@ export function StaffLoginPage() {
     sessionStorage.setItem('govserve_staff_user', JSON.stringify(userWithPin));
     sessionStorage.setItem('govserve_user', JSON.stringify(userWithPin));
     localStorage.setItem('govserve_staff_user', JSON.stringify(userWithPin));
+    broadcastAuth('LOGIN', 'Staff');
     
     // Set last active timestamp for 30-min timeout
     localStorage.setItem('govserve_last_active_staff', String(Date.now()));

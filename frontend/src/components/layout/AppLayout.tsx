@@ -5,6 +5,7 @@ import { AppHeader } from './AppHeader';
 import { UserProfileModal } from '../profile/UserProfileModal';
 import { SessionTimeoutModal } from '../auth/SessionTimeoutModal';
 import { clearSessionOtp } from '../../lib/api';
+import { broadcastAuth, clearAllAuthStorage, subscribeToAuthEvents } from '../../lib/authSync';
 
 function getUser() {
   try {
@@ -93,23 +94,9 @@ export function AppLayout() {
     if (user?.email) {
       clearSessionOtp(user.email, p);
     }
-
-    if (p === 'citizen') {
-      sessionStorage.removeItem('govserve_citizen_user');
-      localStorage.removeItem('govserve_citizen_user');
-      sessionStorage.removeItem('govserve_user');
-      sessionStorage.removeItem('govserve_portal');
-      sessionStorage.removeItem('govserve_resubmit_ticket');
-      window.dispatchEvent(new Event('govserve_data_updated'));
-      navigate('/login?timeout=1', { replace: true });
-    } else {
-      sessionStorage.removeItem('govserve_staff_user');
-      localStorage.removeItem('govserve_staff_user');
-      sessionStorage.removeItem('govserve_user');
-      sessionStorage.removeItem('govserve_portal');
-      window.dispatchEvent(new Event('govserve_data_updated'));
-      navigate('/admin/login?timeout=1', { replace: true });
-    }
+    clearAllAuthStorage();
+    broadcastAuth('LOGOUT', p === 'citizen' ? 'Citizen' : 'Staff');
+    navigate(p === 'citizen' ? '/login?timeout=1' : '/admin/login?timeout=1', { replace: true });
   }, [navigate, user]);
 
   /** Extend / Keep active session */
@@ -121,28 +108,19 @@ export function AppLayout() {
     setTimeoutSecondsLeft(120);
   }, [portalKey]);
 
-  // Synchronize authentication status across tabs — isolated per portal
+  // Synchronize authentication status across tabs (instant logout & login sync)
   useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      const portal = sessionStorage.getItem('govserve_portal') || (user?.role === 'Citizen' ? 'citizen' : 'staff');
-
-      if (portal === 'citizen' && e.key === 'govserve_citizen_user') {
-        if (!e.newValue) {
-          navigate('/login', { replace: true });
-        } else {
-          window.location.reload();
-        }
-      } else if (portal === 'staff' && e.key === 'govserve_staff_user') {
-        if (!e.newValue) {
-          navigate('/admin/login', { replace: true });
-        } else {
-          window.location.reload();
-        }
+    const unsubscribe = subscribeToAuthEvents((payload) => {
+      const isCitizen = user?.role === 'Citizen';
+      if (payload.type === 'LOGOUT') {
+        clearAllAuthStorage();
+        navigate(isCitizen ? '/login' : '/admin/login', { replace: true });
+      } else if (payload.type === 'LOGIN') {
+        window.location.reload();
       }
-    };
+    });
 
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    return () => unsubscribe();
   }, [navigate, user?.role]);
 
   // 30-Minute Inactivity Monitoring Engine

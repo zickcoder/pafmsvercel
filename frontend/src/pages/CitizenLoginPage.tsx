@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import emailjs from '@emailjs/browser';
+import { broadcastAuth } from '../lib/authSync';
 import { 
   loginCitizen, 
   getLockoutTimeRemaining, 
@@ -404,6 +405,7 @@ export function CitizenLoginPage() {
     sessionStorage.setItem('govserve_citizen_user', JSON.stringify(userWithPin));
     sessionStorage.setItem('govserve_user', JSON.stringify(userWithPin));
     localStorage.setItem('govserve_citizen_user', JSON.stringify(userWithPin));
+    broadcastAuth('LOGIN', 'Citizen');
     
     // Set last active timestamp for 30-min timeout
     localStorage.setItem('govserve_last_active_citizen', String(Date.now()));

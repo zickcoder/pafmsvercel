@@ -12,6 +12,7 @@ import {
   FileText
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { broadcastAuth, clearAllAuthStorage } from '../../lib/authSync';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -54,22 +55,9 @@ export function AppSidebar({ isOpen, onClose, onOpenProfile }: SidebarProps) {
   const isCitizen = user?.role === 'Citizen';
 
   const handleLogout = () => {
-    if (isCitizen) {
-      sessionStorage.removeItem('govserve_citizen_user');
-      localStorage.removeItem('govserve_citizen_user');
-      sessionStorage.removeItem('govserve_user');
-      sessionStorage.removeItem('govserve_portal');
-      sessionStorage.removeItem('govserve_resubmit_ticket');
-      window.dispatchEvent(new Event('govserve_data_updated'));
-      navigate('/login');
-    } else {
-      sessionStorage.removeItem('govserve_staff_user');
-      localStorage.removeItem('govserve_staff_user');
-      sessionStorage.removeItem('govserve_user');
-      sessionStorage.removeItem('govserve_portal');
-      window.dispatchEvent(new Event('govserve_data_updated'));
-      navigate('/admin/login');
-    }
+    clearAllAuthStorage();
+    broadcastAuth('LOGOUT', isCitizen ? 'Citizen' : 'Staff');
+    navigate(isCitizen ? '/login' : '/admin/login');
   };
 
   const navGroups = isCitizen
