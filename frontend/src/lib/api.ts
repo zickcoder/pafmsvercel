@@ -1213,6 +1213,9 @@ export function parse12HToMinutes(timeStr: string): number {
 export function calculateBookingHours(startTime: string, endTime: string): number {
   if (!startTime || !endTime) return 0;
   if (startTime.trim().toLowerCase() === endTime.trim().toLowerCase()) return 0;
+  const s = startTime.trim().toUpperCase();
+  const e = endTime.trim().toUpperCase();
+  if (s === '12:00 AM' && (e === '11:59 PM' || e === '12:00 AM')) return 24;
   const startMin = parse12HToMinutes(startTime);
   const endMin = parse12HToMinutes(endTime);
   const diffMinutes = endMin - startMin;
@@ -1229,39 +1232,41 @@ export function calculateSlotFee(
   facilityOrRate?: any,
   afternoonRateParam?: number
 ): { fee: number; hours: number; slotLabel: string; isMorning: boolean; isAfternoon: boolean; isBoth: boolean } {
-  let mRate = 0;
-  let aRate = 0;
+  let hourlyRate = 0;
 
   if (typeof facilityOrRate === 'object' && facilityOrRate !== null) {
-    mRate = Number(facilityOrRate.morning_rate ?? facilityOrRate.hourly_rate ?? 0);
-    aRate = Number(facilityOrRate.afternoon_rate ?? facilityOrRate.hourly_rate ?? 0);
+    hourlyRate = Number(facilityOrRate.hourly_rate ?? facilityOrRate.morning_rate ?? 0);
   } else if (typeof facilityOrRate === 'number') {
-    mRate = facilityOrRate;
-    aRate = afternoonRateParam !== undefined ? afternoonRateParam : facilityOrRate;
+    hourlyRate = facilityOrRate;
   }
 
   const s = (startTime || '').trim().toUpperCase();
   const e = (endTime || '').trim().toUpperCase();
 
-  const isMorning = s.startsWith('08') && (e.startsWith('12') || e === '12:00 PM');
-  const isAfternoon = (s.startsWith('01') || s.startsWith('1:') || s.startsWith('13')) && (e.startsWith('05') || e.startsWith('5:') || e.startsWith('17'));
-  const isBoth = s.startsWith('08') && (e.startsWith('05') || e.startsWith('5:') || e.startsWith('17'));
+  // Whole Day = 24 hours
+  const is24H = (s === '12:00 AM' && (e === '11:59 PM' || e === '12:00 AM')) || s.includes('24') || e.includes('24');
+  const isBoth = is24H || (s.startsWith('08') && (e.startsWith('05') || e.startsWith('5:') || e.startsWith('17')));
 
   if (isBoth) {
     return {
-      fee: mRate + aRate,
-      hours: 8,
-      slotLabel: 'Full Day (08:00 AM – 05:00 PM)',
+      fee: Math.round(24 * hourlyRate),
+      hours: 24,
+      slotLabel: 'Whole Day (24 Hours)',
       isMorning: true,
       isAfternoon: true,
       isBoth: true
     };
   }
+
+  const hours = calculateBookingHours(startTime, endTime) || 4;
+  const isMorning = (s.startsWith('08') || s.startsWith('8:')) && (e.startsWith('12') || e === '12:00 PM');
+  const isAfternoon = (s.startsWith('01') || s.startsWith('1:') || s.startsWith('13')) && (e.startsWith('05') || e.startsWith('5:') || e.startsWith('17'));
+
   if (isMorning) {
     return {
-      fee: mRate,
-      hours: 4,
-      slotLabel: 'Morning Slot (08:00 AM – 12:00 PM)',
+      fee: Math.round(hours * hourlyRate),
+      hours,
+      slotLabel: `Morning Slot (${startTime} – ${endTime})`,
       isMorning: true,
       isAfternoon: false,
       isBoth: false
@@ -1269,9 +1274,9 @@ export function calculateSlotFee(
   }
   if (isAfternoon) {
     return {
-      fee: aRate,
-      hours: 4,
-      slotLabel: 'Afternoon Slot (01:00 PM – 05:00 PM)',
+      fee: Math.round(hours * hourlyRate),
+      hours,
+      slotLabel: `Afternoon Slot (${startTime} – ${endTime})`,
       isMorning: false,
       isAfternoon: true,
       isBoth: false
@@ -1279,11 +1284,10 @@ export function calculateSlotFee(
   }
 
   // Fallback for custom or legacy hours
-  const hours = calculateBookingHours(startTime, endTime);
-  const baseRate = mRate || aRate || 0;
+  const customHours = calculateBookingHours(startTime, endTime);
   return {
-    fee: Math.round(hours * baseRate),
-    hours,
+    fee: Math.round(customHours * hourlyRate),
+    hours: customHours,
     slotLabel: `${startTime} – ${endTime}`,
     isMorning: false,
     isAfternoon: false,

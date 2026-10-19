@@ -38,7 +38,7 @@ import {
   calculateFacilityFee,
   calculateBookingHours
 } from '../lib/api';
-import { Facility, FacilityReservation } from '../types';
+import { Facility, FacilityReservation, SlotScheduleConfig, DEFAULT_SLOT_SCHEDULE, getStoredSlotSchedule } from '../types';
 
 import { StatusAnimationModal } from '../components/ui/StatusAnimationModal';
 
@@ -57,7 +57,6 @@ export function FacilitiesModule() {
   const [editingFacility, setEditingFacility] = useState<Facility | null>(null);
   const [facilityForm, setFacilityForm] = useState({
     name: '', category: 'Government Facility', capacity: '100', hourly_rate: '500',
-    morning_rate: '500', afternoon_rate: '500',
     status: 'Available', amenities: '',
     location: 'Civic Complex, Mindanao Ave.',
     image_url: '',
@@ -66,7 +65,7 @@ export function FacilitiesModule() {
 
   const openAddFacility = () => {
     setEditingFacility(null);
-    setFacilityForm({ name: '', category: 'Government Facility', capacity: '100', hourly_rate: '500', morning_rate: '500', afternoon_rate: '500', status: 'Available', amenities: '', location: 'Civic Complex, Mindanao Ave.', image_url: '', image_url_2: '' });
+    setFacilityForm({ name: '', category: 'Government Facility', capacity: '100', hourly_rate: '500', status: 'Available', amenities: '', location: 'Civic Complex, Mindanao Ave.', image_url: '', image_url_2: '' });
     setIsFacilityFormOpen(true);
   };
 
@@ -76,9 +75,7 @@ export function FacilitiesModule() {
       name: fac.name,
       category: fac.category,
       capacity: String(fac.capacity),
-      hourly_rate: String(fac.hourly_rate),
-      morning_rate: String((fac as any).morning_rate ?? fac.hourly_rate ?? 500),
-      afternoon_rate: String((fac as any).afternoon_rate ?? fac.hourly_rate ?? 500),
+      hourly_rate: String(fac.hourly_rate ?? 500),
       status: (fac as any).status === 'Not Available' ? 'Not Available' : 'Available',
       amenities: fac.amenities || '',
       location: fac.location || 'Civic Complex, Mindanao Ave.',
@@ -103,8 +100,7 @@ export function FacilitiesModule() {
     e.preventDefault();
     setIsSavingFacility(true);
     try {
-      const morningRate = parseFloat(facilityForm.morning_rate) || 0;
-      const afternoonRate = parseFloat(facilityForm.afternoon_rate) || 0;
+      const hourlyRate = parseFloat(facilityForm.hourly_rate) || 0;
       const payload = {
         ...facilityForm,
         location: facilityForm.location.trim() || 'Civic Complex, Mindanao Ave.',
@@ -112,9 +108,9 @@ export function FacilitiesModule() {
         image_url: facilityForm.image_url || null,
         image_url_2: facilityForm.image_url_2 || null,
         capacity: parseInt(facilityForm.capacity) || 50,
-        hourly_rate: morningRate,
-        morning_rate: morningRate,
-        afternoon_rate: afternoonRate
+        hourly_rate: hourlyRate,
+        morning_rate: hourlyRate,
+        afternoon_rate: hourlyRate
       };
       if (editingFacility) {
         await updateFacility(editingFacility.id, payload);
@@ -209,6 +205,43 @@ export function FacilitiesModule() {
     updated[idx] = val;
     saveEquipment(updated);
     setEditingEquipIdx(null);
+  };
+
+  // Time Slot Schedule Configuration (dynamically reflects on Citizen booking side)
+  const TIME_OPTIONS = [
+    '06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM',
+    '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+    '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM',
+    '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM',
+    '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM', '08:30 PM',
+    '09:00 PM', '09:30 PM', '10:00 PM'
+  ];
+
+  const [slotSchedule, setSlotSchedule] = useState<SlotScheduleConfig>(() => getStoredSlotSchedule('facility'));
+  const [isSlotManagerOpen, setIsSlotManagerOpen] = useState(false);
+  const [isSlotSaving, setIsSlotSaving] = useState(false);
+
+  const saveSlotSchedule = () => {
+    setIsSlotSaving(true);
+    localStorage.setItem('govserve_slots_facility', JSON.stringify(slotSchedule));
+    window.dispatchEvent(new Event('govserve_slots_updated'));
+    window.dispatchEvent(new Event('govserve_data_updated'));
+    setTimeout(() => {
+      setIsSlotSaving(false);
+      setAnimModal({
+        isOpen: true,
+        type: 'success',
+        title: '✓ Slot Schedule Saved',
+        message: 'Morning, Afternoon and Whole Day time slot settings have been updated and are now live on the Citizen Booking portal.'
+      });
+    }, 200);
+  };
+
+  const resetSlotSchedule = () => {
+    setSlotSchedule(DEFAULT_SLOT_SCHEDULE);
+    localStorage.setItem('govserve_slots_facility', JSON.stringify(DEFAULT_SLOT_SCHEDULE));
+    window.dispatchEvent(new Event('govserve_slots_updated'));
+    window.dispatchEvent(new Event('govserve_data_updated'));
   };
 
 
@@ -456,19 +489,11 @@ export function FacilitiesModule() {
               </div>
 
               <div className="p-4 pt-0 space-y-3">
-                <div className="pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-2">
-                  <div className="p-2 rounded-xl bg-blue-50/70 border border-blue-100/90 flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Morning Rate</span>
-                    <span className="text-xs font-black text-blue-900 mt-0.5">
-                      {mRate > 0 ? `₱${mRate.toLocaleString()}` : 'Free'}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-blue-50/70 border border-blue-100/90 flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Afternoon Rate</span>
-                    <span className="text-xs font-black text-blue-900 mt-0.5">
-                      {aRate > 0 ? `₱${aRate.toLocaleString()}` : 'Free'}
-                    </span>
-                  </div>
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between p-2 rounded-xl bg-blue-50/70 border border-blue-100/90">
+                  <span className="text-[11px] font-bold text-slate-600">Rate per Hour:</span>
+                  <span className="text-xs font-black text-blue-900">
+                    {Number(fac.hourly_rate) > 0 ? `₱${Number(fac.hourly_rate).toLocaleString()} / hr` : 'Free (₱0.00)'}
+                  </span>
                 </div>
 
                 <div className="flex gap-2">
@@ -489,6 +514,227 @@ export function FacilitiesModule() {
             </Card>
           );
         })}
+      </div>
+
+      {/* Time Slot Schedule Configuration Card */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-soft overflow-hidden">
+        <div
+          className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+          onClick={() => setIsSlotManagerOpen(v => !v)}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900">Time Slot Schedule & Operating Hours Settings</h3>
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  Live Sync to Citizens
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Morning: {slotSchedule.morning.enabled ? `${slotSchedule.morning.start} – ${slotSchedule.morning.end}` : 'Disabled'} • Afternoon: {slotSchedule.afternoon.enabled ? `${slotSchedule.afternoon.start} – ${slotSchedule.afternoon.end}` : 'Disabled'} • Whole Day: 24 Hours
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
+            {isSlotManagerOpen ? '▲ Collapse' : '▼ Manage Time Slots'}
+          </span>
+        </div>
+
+        {isSlotManagerOpen && (
+          <div className="border-t border-slate-200 p-4 space-y-4 bg-slate-50/50">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Morning Slot Config */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">🌅</span>
+                    <span className="text-xs font-bold text-slate-900">Morning Slot</span>
+                  </div>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={slotSchedule.morning.enabled}
+                      onChange={e => setSlotSchedule(prev => ({
+                        ...prev,
+                        morning: { ...prev.morning, enabled: e.target.checked }
+                      }))}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                    />
+                    <span className={`text-[10px] font-bold ${slotSchedule.morning.enabled ? 'text-emerald-700' : 'text-slate-400'}`}>
+                      {slotSchedule.morning.enabled ? 'Active' : 'Disabled'}
+                    </span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Start Time</label>
+                    <select
+                      value={slotSchedule.morning.start}
+                      onChange={e => setSlotSchedule(prev => ({
+                        ...prev,
+                        morning: { ...prev.morning, start: e.target.value }
+                      }))}
+                      disabled={!slotSchedule.morning.enabled}
+                      className="w-full text-xs p-1.5 rounded-lg border border-slate-200 bg-slate-50 font-medium disabled:opacity-50"
+                    >
+                      {TIME_OPTIONS.map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">End Time</label>
+                    <select
+                      value={slotSchedule.morning.end}
+                      onChange={e => setSlotSchedule(prev => ({
+                        ...prev,
+                        morning: { ...prev.morning, end: e.target.value }
+                      }))}
+                      disabled={!slotSchedule.morning.enabled}
+                      className="w-full text-xs p-1.5 rounded-lg border border-slate-200 bg-slate-50 font-medium disabled:opacity-50"
+                    >
+                      {TIME_OPTIONS.map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
+                  <span>Slot Duration:</span>
+                  <span className="font-bold text-indigo-900">
+                    {calculateBookingHours(slotSchedule.morning.start, slotSchedule.morning.end)} Hours
+                  </span>
+                </div>
+              </div>
+
+              {/* Afternoon Slot Config */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">☀️</span>
+                    <span className="text-xs font-bold text-slate-900">Afternoon Slot</span>
+                  </div>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={slotSchedule.afternoon.enabled}
+                      onChange={e => setSlotSchedule(prev => ({
+                        ...prev,
+                        afternoon: { ...prev.afternoon, enabled: e.target.checked }
+                      }))}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                    />
+                    <span className={`text-[10px] font-bold ${slotSchedule.afternoon.enabled ? 'text-emerald-700' : 'text-slate-400'}`}>
+                      {slotSchedule.afternoon.enabled ? 'Active' : 'Disabled'}
+                    </span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Start Time</label>
+                    <select
+                      value={slotSchedule.afternoon.start}
+                      onChange={e => setSlotSchedule(prev => ({
+                        ...prev,
+                        afternoon: { ...prev.afternoon, start: e.target.value }
+                      }))}
+                      disabled={!slotSchedule.afternoon.enabled}
+                      className="w-full text-xs p-1.5 rounded-lg border border-slate-200 bg-slate-50 font-medium disabled:opacity-50"
+                    >
+                      {TIME_OPTIONS.map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">End Time</label>
+                    <select
+                      value={slotSchedule.afternoon.end}
+                      onChange={e => setSlotSchedule(prev => ({
+                        ...prev,
+                        afternoon: { ...prev.afternoon, end: e.target.value }
+                      }))}
+                      disabled={!slotSchedule.afternoon.enabled}
+                      className="w-full text-xs p-1.5 rounded-lg border border-slate-200 bg-slate-50 font-medium disabled:opacity-50"
+                    >
+                      {TIME_OPTIONS.map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
+                  <span>Slot Duration:</span>
+                  <span className="font-bold text-indigo-900">
+                    {calculateBookingHours(slotSchedule.afternoon.start, slotSchedule.afternoon.end)} Hours
+                  </span>
+                </div>
+              </div>
+
+              {/* Whole Day Slot Config */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">🏛️</span>
+                    <span className="text-xs font-bold text-slate-900">Whole Day Slot</span>
+                  </div>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={slotSchedule.wholeDay.enabled}
+                      onChange={e => setSlotSchedule(prev => ({
+                        ...prev,
+                        wholeDay: { ...prev.wholeDay, enabled: e.target.checked }
+                      }))}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                    />
+                    <span className={`text-[10px] font-bold ${slotSchedule.wholeDay.enabled ? 'text-emerald-700' : 'text-slate-400'}`}>
+                      {slotSchedule.wholeDay.enabled ? 'Active' : 'Disabled'}
+                    </span>
+                  </label>
+                </div>
+
+                <div className="p-2 rounded-lg bg-indigo-50/70 border border-indigo-100 text-center">
+                  <span className="text-[10px] font-bold text-indigo-900 uppercase tracking-wide">Continuous Access</span>
+                  <p className="text-xs font-black text-indigo-950 mt-0.5">24 Hours / Day</p>
+                  <p className="text-[9px] text-indigo-700 mt-1">Calculates at: 24 hrs × Standard Hourly Rate</p>
+                </div>
+
+                <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
+                  <span>Rate Scheme:</span>
+                  <span className="font-bold text-indigo-900">24 × Hourly Rate</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={resetSlotSchedule}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline"
+              >
+                Reset to Standard Defaults
+              </button>
+              <button
+                type="button"
+                onClick={saveSlotSchedule}
+                disabled={isSlotSaving}
+                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {isSlotSaving ? 'Saving Changes...' : 'Save Time Slot Settings'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Equipment Manager Section */}
@@ -1053,7 +1299,7 @@ export function FacilitiesModule() {
             onChange={e => setFacilityForm({ ...facilityForm, location: e.target.value })}
             placeholder="e.g. Civic Complex, Mindanao Ave."
           />
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-[#334155] mb-1">Maximum Capacity (Pax) *</label>
               <input type="number" required min="1" value={facilityForm.capacity}
@@ -1062,20 +1308,13 @@ export function FacilitiesModule() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#334155] mb-1">Morning Slot Rate (₱) *</label>
-              <input type="number" required min="0" step="1" value={facilityForm.morning_rate}
-                onChange={e => setFacilityForm({ ...facilityForm, morning_rate: e.target.value, hourly_rate: e.target.value })}
+              <label className="block text-xs font-semibold text-[#334155] mb-1">Rate Per Hour (₱/hr) *</label>
+              <input type="number" required min="0" step="1" value={facilityForm.hourly_rate}
+                onChange={e => setFacilityForm({ ...facilityForm, hourly_rate: e.target.value })}
                 className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:outline-none focus:border-blue-600"
+                placeholder="500"
               />
-              <p className="text-[10px] text-slate-400 mt-0.5">08:00 AM – 12:00 PM</p>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#334155] mb-1">Afternoon Slot Rate (₱) *</label>
-              <input type="number" required min="0" step="1" value={facilityForm.afternoon_rate}
-                onChange={e => setFacilityForm({ ...facilityForm, afternoon_rate: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:outline-none focus:border-blue-600"
-              />
-              <p className="text-[10px] text-slate-400 mt-0.5">01:00 PM – 05:00 PM</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Applied per hour to Morning, Afternoon, and 24h slots</p>
             </div>
           </div>
           <div>

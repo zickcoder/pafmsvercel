@@ -28,10 +28,11 @@ import { Input } from '../ui/Input';
 import { 
   fetchFacilities, 
   fetchReservations, 
-  createReservation
+  createReservation,
+  calculateBookingHours
 } from '../../lib/api';
 import { compressImage } from '../../lib/imageCompressor';
-import { Facility, FacilityReservation } from '../../types';
+import { Facility, FacilityReservation, SlotScheduleConfig, DEFAULT_SLOT_SCHEDULE, getStoredSlotSchedule } from '../../types';
 
 interface BookingAssistantProps {
   mode?: 'parks' | 'facility' | 'both';
@@ -227,21 +228,62 @@ export function ParksFacilitiesBookingAssistant({
     return facilities.find(f => f.id === selectedFacilityId) || facilities[0] || null;
   }, [facilities, selectedFacilityId]);
 
-  // ─── Time Slot Definitions — admin configures rates via Morning/Afternoon Slot Rate ───
-  // morning_rate / afternoon_rate set in admin panel override the per-hour rate for that slot
-  const SLOT_CONFIG: Record<SlotType, { start: string; end: string; hours: number }> = {
-    'Morning Slot':   { start: '08:00 AM', end: '12:00 PM', hours: 4 },
-    'Afternoon Slot': { start: '01:00 PM', end: '05:00 PM', hours: 4 },
-    'Whole Day Slot': { start: '08:00 AM', end: '05:00 PM', hours: 8 },
-  };
+  // ─── Time Slot Schedule Configuration (dynamically reflects admin settings) ───
+  const [slotConfig, setSlotConfig] = useState<SlotScheduleConfig>(() =>
+    getStoredSlotSchedule(mode === 'parks' ? 'parks' : 'facility')
+  );
 
-  /** Returns the fee for a slot based on admin-configured rates */
+  useEffect(() => {
+    const updateSlots = () => {
+      setSlotConfig(getStoredSlotSchedule(mode === 'parks' ? 'parks' : 'facility'));
+    };
+    updateSlots();
+    window.addEventListener('govserve_slots_updated', updateSlots);
+    window.addEventListener('govserve_data_updated', updateSlots);
+    return () => {
+      window.removeEventListener('govserve_slots_updated', updateSlots);
+      window.removeEventListener('govserve_data_updated', updateSlots);
+    };
+  }, [mode]);
+
+  const morningHours = useMemo(() => {
+    return calculateBookingHours(slotConfig.morning.start, slotConfig.morning.end) || 4;
+  }, [slotConfig.morning.start, slotConfig.morning.end]);
+
+  const afternoonHours = useMemo(() => {
+    return calculateBookingHours(slotConfig.afternoon.start, slotConfig.afternoon.end) || 4;
+  }, [slotConfig.afternoon.start, slotConfig.afternoon.end]);
+
+  const activeSlots: SlotType[] = useMemo(() => {
+    const list: SlotType[] = [];
+    if (slotConfig.morning.enabled) list.push('Morning Slot');
+    if (slotConfig.afternoon.enabled) list.push('Afternoon Slot');
+    if (slotConfig.wholeDay.enabled) list.push('Whole Day Slot');
+    return list.length > 0 ? list : ['Morning Slot', 'Afternoon Slot', 'Whole Day Slot'];
+  }, [slotConfig]);
+
+  // Ensure selected slot is valid and active
+  useEffect(() => {
+    if (!activeSlots.includes(selectedSlot)) {
+      setSelectedSlot(activeSlots[0]);
+    }
+  }, [activeSlots, selectedSlot]);
+
+  // Dynamic slot definition based on admin time controls
+  const SLOT_CONFIG: Record<SlotType, { start: string; end: string; hours: number; enabled: boolean }> = useMemo(() => ({
+    'Morning Slot':   { start: slotConfig.morning.start, end: slotConfig.morning.end, hours: morningHours, enabled: slotConfig.morning.enabled },
+    'Afternoon Slot': { start: slotConfig.afternoon.start, end: slotConfig.afternoon.end, hours: afternoonHours, enabled: slotConfig.afternoon.enabled },
+    'Whole Day Slot': { start: '12:00 AM', end: '11:59 PM', hours: 24, enabled: slotConfig.wholeDay.enabled },
+  }), [slotConfig, morningHours, afternoonHours]);
+
+  /** Returns the fee for a slot strictly based on admin per-hour rate (Whole Day = 24 * hourly_rate) */
   const getSlotFee = (slot: SlotType, facility: Facility | null): number => {
     if (!facility) return 0;
-    if (slot === 'Morning Slot')   return facility.morning_rate   ?? facility.hourly_rate * 4;
-    if (slot === 'Afternoon Slot') return facility.afternoon_rate ?? facility.hourly_rate * 4;
-    // Whole Day = morning + afternoon (or hourly × 8)
-    return (facility.morning_rate ?? facility.hourly_rate * 4) + (facility.afternoon_rate ?? facility.hourly_rate * 4);
+    const rate = Number(facility.hourly_rate ?? (facility as any).morning_rate ?? 0);
+    if (slot === 'Morning Slot')   return morningHours * rate;
+    if (slot === 'Afternoon Slot') return afternoonHours * rate;
+    // Whole Day = strictly 24 hours × per hour rate
+    return 24 * rate;
   };
 
   // ─── Computed Daily Availability for Selected Month ───
@@ -548,14 +590,15 @@ export function ParksFacilitiesBookingAssistant({
   const computedFee = useMemo(() => {
     if (activityType === 'LGU Activity') return 0;
     if (!selectedFacility) return 0;
+    const rate = Number(selectedFacility.hourly_rate ?? (selectedFacility as any).morning_rate ?? 0);
     if (bookingMode === 'multi') {
       // Multi-day: 24 hrs × hourly_rate × total days (continuous automatic)
       const totalDays = 1 + multiDayDates.length;
-      return 24 * (selectedFacility.hourly_rate ?? 500) * totalDays;
+      return 24 * rate * totalDays;
     }
-    // Single day: use admin-configured morning/afternoon slot rates
+    // Single day: strictly calculate using hourly rate (Whole Day = 24 * rate)
     return getSlotFee(selectedSlot, selectedFacility);
-  }, [activityType, selectedFacility, bookingMode, multiDayDates, selectedSlot]);
+  }, [activityType, selectedFacility, bookingMode, multiDayDates, selectedSlot, morningHours, afternoonHours]);
 
 
   // ─── Proof File Handler ───
@@ -624,8 +667,9 @@ export function ParksFacilitiesBookingAssistant({
     }
 
     const slotInfo = SLOT_CONFIG[selectedSlot];
-    const startTime = bookingMode === 'multi' ? '12:00 AM' : slotInfo.start;
-    const endTime   = bookingMode === 'multi' ? '11:59 PM' : slotInfo.end;
+    const isWholeDay = selectedSlot === 'Whole Day Slot' || bookingMode === 'multi';
+    const startTime = isWholeDay ? '12:00 AM' : slotInfo.start;
+    const endTime   = isWholeDay ? '11:59 PM' : slotInfo.end;
     const hours     = bookingMode === 'multi' ? 24 * (1 + multiDayDates.length) : slotInfo.hours;
     const allDates  = bookingMode === 'multi' ? [selectedDate, ...multiDayDates].sort() : [selectedDate];
 
@@ -1571,8 +1615,8 @@ export function ParksFacilitiesBookingAssistant({
 
                       {/* ── Single Day: Morning / Afternoon / Whole Day Slots ── */}
                       {bookingMode === 'single' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 animate-fade-in">
-                          {(['Morning Slot', 'Afternoon Slot', 'Whole Day Slot'] as SlotType[]).map((slotKey) => {
+                        <div className={`grid grid-cols-1 ${activeSlots.length === 2 ? 'sm:grid-cols-2' : activeSlots.length === 1 ? 'sm:grid-cols-1' : 'sm:grid-cols-3'} gap-2 animate-fade-in`}>
+                          {activeSlots.map((slotKey) => {
                             const isSelected = selectedSlot === slotKey;
                             const slotDef = SLOT_CONFIG[slotKey];
                             const slotFee = getSlotFee(slotKey, selectedFacility);
@@ -1603,7 +1647,7 @@ export function ParksFacilitiesBookingAssistant({
                               >
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="text-xs font-black">
-                                    {slotKey === 'Morning Slot' ? '🌅 Morning' : slotKey === 'Afternoon Slot' ? '☀️ Afternoon' : '🏛️ Whole Day'}
+                                    {slotKey === 'Morning Slot' ? '🌅 Morning' : slotKey === 'Afternoon Slot' ? '☀️ Afternoon' : '🏛️ Whole Day (24 Hours)'}
                                   </span>
                                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                                     isSelected ? 'bg-white/20 text-white' : isBlocked ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
@@ -1612,7 +1656,7 @@ export function ParksFacilitiesBookingAssistant({
                                   </span>
                                 </div>
                                 <p className={`text-[10px] font-mono ${isSelected ? 'text-emerald-100' : 'text-slate-500'}`}>
-                                  {slotDef.start} – {slotDef.end}
+                                  {slotKey === 'Whole Day Slot' ? '24 Hours Continuous Day Access' : `${slotDef.start} – ${slotDef.end}`}
                                 </p>
                                 {activityType !== 'LGU Activity' && (
                                   <p className={`text-[10px] font-bold mt-1 ${isSelected ? 'text-white/90' : 'text-slate-700'}`}>
@@ -1621,7 +1665,7 @@ export function ParksFacilitiesBookingAssistant({
                                 )}
                                 {slotKey === 'Whole Day Slot' && (
                                   <p className={`text-[8px] mt-0.5 ${isSelected ? 'text-white/70' : 'text-slate-400'}`}>
-                                    (incl. 1h lunch break)
+                                    (24 hrs continuous • 24 × Hourly Rate)
                                   </p>
                                 )}
                               </button>
