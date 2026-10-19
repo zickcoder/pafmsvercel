@@ -1123,130 +1123,120 @@ export function PublicPortal() {
                             />
                           </div>
 
-                          {/* 2 Fixed 4-Hour Time Slot Selection Checklist */}
+                          {/* Controlled Time Slot Selection */}
                           {(() => {
-                            const isMorningSelected = reserveForm.start_time === '08:00 AM' && (reserveForm.end_time === '12:00 PM' || reserveForm.end_time === '05:00 PM');
-                            const isAfternoonSelected = (reserveForm.start_time === '01:00 PM' && reserveForm.end_time === '05:00 PM') || (reserveForm.start_time === '08:00 AM' && reserveForm.end_time === '05:00 PM');
-                            const isBothSelected = isMorningSelected && isAfternoonSelected;
+                            const morningStart = selectedFacilityObj?.morning_start || '08:00 AM';
+                            const morningEnd = selectedFacilityObj?.morning_end || '12:00 PM';
+                            const morningEnabled = selectedFacilityObj ? selectedFacilityObj.morning_enabled !== false : true;
 
-                            const mPrice = Number(selectedFacilityObj?.morning_rate ?? selectedFacilityObj?.hourly_rate ?? 0);
-                            const aPrice = Number(selectedFacilityObj?.afternoon_rate ?? selectedFacilityObj?.hourly_rate ?? 0);
+                            const afternoonStart = selectedFacilityObj?.afternoon_start || '01:00 PM';
+                            const afternoonEnd = selectedFacilityObj?.afternoon_end || '05:00 PM';
+                            const afternoonEnabled = selectedFacilityObj ? selectedFacilityObj.afternoon_enabled !== false : true;
 
-                            const handleToggleSlot = (slot: 'morning' | 'afternoon') => {
-                              if (slot === 'morning') {
-                                if (isMorningSelected) {
-                                  if (isAfternoonSelected) {
-                                    setReserveForm(prev => ({ ...prev, start_time: '01:00 PM', end_time: '05:00 PM' }));
-                                  }
-                                } else {
-                                  if (isAfternoonSelected) {
-                                    setReserveForm(prev => ({ ...prev, start_time: '08:00 AM', end_time: '05:00 PM' }));
-                                  } else {
-                                    setReserveForm(prev => ({ ...prev, start_time: '08:00 AM', end_time: '12:00 PM' }));
-                                  }
-                                }
-                              } else {
-                                if (isAfternoonSelected) {
-                                  if (isMorningSelected) {
-                                    setReserveForm(prev => ({ ...prev, start_time: '08:00 AM', end_time: '12:00 PM' }));
-                                  }
-                                } else {
-                                  if (isMorningSelected) {
-                                    setReserveForm(prev => ({ ...prev, start_time: '08:00 AM', end_time: '05:00 PM' }));
-                                  } else {
-                                    setReserveForm(prev => ({ ...prev, start_time: '01:00 PM', end_time: '05:00 PM' }));
-                                  }
-                                }
-                              }
-                            };
+                            const wholeDayEnabled = selectedFacilityObj ? selectedFacilityObj.wholeday_enabled !== false : true;
 
-                            const handleSelectBoth = () => {
-                              if (isBothSelected) {
-                                setReserveForm(prev => ({ ...prev, start_time: '08:00 AM', end_time: '12:00 PM' }));
-                              } else {
-                                setReserveForm(prev => ({ ...prev, start_time: '08:00 AM', end_time: '05:00 PM' }));
-                              }
-                            };
+                            const morningHours = calculateBookingHours(morningStart, morningEnd) || 4;
+                            const afternoonHours = calculateBookingHours(afternoonStart, afternoonEnd) || 4;
+
+                            const hourlyRate = Number(selectedFacilityObj?.hourly_rate ?? selectedFacilityObj?.morning_rate ?? 0);
+                            const mPrice = morningHours * hourlyRate;
+                            const aPrice = afternoonHours * hourlyRate;
+
+                            const isWholeDaySelected = reserveForm.start_time === '12:00 AM' && (reserveForm.end_time === '11:59 PM' || reserveForm.end_time === '12:00 AM');
+                            const isMorningSelected = !isWholeDaySelected && reserveForm.start_time === morningStart;
+                            const isAfternoonSelected = !isWholeDaySelected && reserveForm.start_time === afternoonStart;
 
                             return (
                               <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                   <label className="block text-xs font-bold text-[#334155] uppercase tracking-wider">
-                                    Select Time Slot (4 Hours Each) *
+                                    Time Slot Selection (Per Hour Rate Applied) *
                                   </label>
-                                  <button
-                                    type="button"
-                                    onClick={handleSelectBoth}
-                                    className={`text-[11px] font-bold px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                                      isBothSelected
-                                        ? 'bg-blue-600 text-white shadow-sm'
-                                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                    }`}
-                                  >
-                                    {isBothSelected ? '✓ Both Slots Selected (Full Day: 08:00 AM – 05:00 PM)' : '+ Book Both Slots (Full Day: 08:00 AM – 05:00 PM)'}
-                                  </button>
+                                  {wholeDayEnabled && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (isWholeDaySelected) {
+                                          setReserveForm(prev => ({ ...prev, start_time: morningStart, end_time: morningEnd }));
+                                        } else {
+                                          setReserveForm(prev => ({ ...prev, start_time: '12:00 AM', end_time: '11:59 PM' }));
+                                        }
+                                      }}
+                                      className={`text-[11px] font-bold px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                                        isWholeDaySelected
+                                          ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-400'
+                                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                      }`}
+                                    >
+                                      {isWholeDaySelected ? '✓ 🏛️ Whole Day Selected (24 Hours)' : '+ 🏛️ Whole Day (24 Hours)'}
+                                    </button>
+                                  )}
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   {/* Morning Slot Box */}
-                                  <div
-                                    onClick={() => handleToggleSlot('morning')}
-                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
-                                      isMorningSelected
-                                        ? 'bg-blue-50/90 border-blue-500 text-blue-950 shadow-sm ring-1 ring-blue-500/30'
-                                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                                    }`}
-                                  >
-                                    <div className="pt-0.5 shrink-0">
-                                      {isMorningSelected ? (
-                                        <CheckSquare className="w-5 h-5 text-blue-600" />
-                                      ) : (
-                                        <Square className="w-5 h-5 text-slate-400" />
-                                      )}
-                                    </div>
-                                    <div className="space-y-0.5 flex-1">
-                                      <div className="flex items-center justify-between">
-                                        <span className="font-extrabold text-xs sm:text-sm">Morning Slot</span>
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isMorningSelected ? 'bg-blue-200 text-blue-900' : 'bg-slate-100 text-slate-600'}`}>
-                                          4 Hours
-                                        </span>
+                                  {morningEnabled && (
+                                    <div
+                                      onClick={() => setReserveForm(prev => ({ ...prev, start_time: morningStart, end_time: morningEnd }))}
+                                      className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
+                                        isMorningSelected
+                                          ? 'bg-blue-50/90 border-blue-500 text-blue-950 shadow-sm ring-1 ring-blue-500/30'
+                                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      <div className="pt-0.5 shrink-0">
+                                        {isMorningSelected ? (
+                                          <CheckSquare className="w-5 h-5 text-blue-600" />
+                                        ) : (
+                                          <Square className="w-5 h-5 text-slate-400" />
+                                        )}
                                       </div>
-                                      <p className="text-xs text-slate-500 font-medium">08:00 AM – 12:00 PM</p>
-                                      <p className="text-xs font-bold text-emerald-600 pt-1">
-                                        ₱{mPrice.toLocaleString()}.00 <span className="text-[10px] font-normal text-slate-500">/ slot</span>
-                                      </p>
+                                      <div className="space-y-0.5 flex-1">
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-extrabold text-xs sm:text-sm">🌅 Morning Slot</span>
+                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isMorningSelected ? 'bg-blue-200 text-blue-900' : 'bg-slate-100 text-slate-600'}`}>
+                                            {morningHours} Hours
+                                          </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 font-medium">{morningStart} – {morningEnd}</p>
+                                        <p className="text-xs font-bold text-emerald-600 pt-1">
+                                          ₱{mPrice.toLocaleString()}.00 <span className="text-[10px] font-normal text-slate-500">({morningHours}h × ₱{hourlyRate}/hr)</span>
+                                        </p>
+                                      </div>
                                     </div>
-                                  </div>
+                                  )}
 
                                   {/* Afternoon Slot Box */}
-                                  <div
-                                    onClick={() => handleToggleSlot('afternoon')}
-                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
-                                      isAfternoonSelected
-                                        ? 'bg-blue-50/90 border-blue-500 text-blue-950 shadow-sm ring-1 ring-blue-500/30'
-                                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                                    }`}
-                                  >
-                                    <div className="pt-0.5 shrink-0">
-                                      {isAfternoonSelected ? (
-                                        <CheckSquare className="w-5 h-5 text-blue-600" />
-                                      ) : (
-                                        <Square className="w-5 h-5 text-slate-400" />
-                                      )}
-                                    </div>
-                                    <div className="space-y-0.5 flex-1">
-                                      <div className="flex items-center justify-between">
-                                        <span className="font-extrabold text-xs sm:text-sm">Afternoon Slot</span>
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isAfternoonSelected ? 'bg-blue-200 text-blue-900' : 'bg-slate-100 text-slate-600'}`}>
-                                          4 Hours
-                                        </span>
+                                  {afternoonEnabled && (
+                                    <div
+                                      onClick={() => setReserveForm(prev => ({ ...prev, start_time: afternoonStart, end_time: afternoonEnd }))}
+                                      className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
+                                        isAfternoonSelected
+                                          ? 'bg-blue-50/90 border-blue-500 text-blue-950 shadow-sm ring-1 ring-blue-500/30'
+                                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      <div className="pt-0.5 shrink-0">
+                                        {isAfternoonSelected ? (
+                                          <CheckSquare className="w-5 h-5 text-blue-600" />
+                                        ) : (
+                                          <Square className="w-5 h-5 text-slate-400" />
+                                        )}
                                       </div>
-                                      <p className="text-xs text-slate-500 font-medium">01:00 PM – 05:00 PM</p>
-                                      <p className="text-xs font-bold text-emerald-600 pt-1">
-                                        ₱{aPrice.toLocaleString()}.00 <span className="text-[10px] font-normal text-slate-500">/ slot</span>
-                                      </p>
+                                      <div className="space-y-0.5 flex-1">
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-extrabold text-xs sm:text-sm">☀️ Afternoon Slot</span>
+                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isAfternoonSelected ? 'bg-blue-200 text-blue-900' : 'bg-slate-100 text-slate-600'}`}>
+                                            {afternoonHours} Hours
+                                          </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 font-medium">{afternoonStart} – {afternoonEnd}</p>
+                                        <p className="text-xs font-bold text-emerald-600 pt-1">
+                                          ₱{aPrice.toLocaleString()}.00 <span className="text-[10px] font-normal text-slate-500">({afternoonHours}h × ₱{hourlyRate}/hr)</span>
+                                        </p>
+                                      </div>
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -1261,7 +1251,7 @@ export function PublicPortal() {
                             </span>
                             <p className="font-semibold text-slate-800">
                               <strong>{bookingHours} {bookingHours === 1 ? 'Hour' : 'Hours'}</strong> ({reserveForm.start_time} – {reserveForm.end_time})
-                              {bookingHours === 8 && <span className="ml-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">Both Slots Combined (slot price × 2)</span>}
+                              {bookingHours === 24 && <span className="ml-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">🏛️ Whole Day (24 Hours Continuous Access)</span>}
                             </p>
                           </div>
                           <div className="sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-blue-200/60">

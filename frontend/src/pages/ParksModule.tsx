@@ -39,7 +39,7 @@ import {
   calculateFacilityFee,
   calculateBookingHours
 } from '../lib/api';
-import { Facility, FacilityReservation, SlotScheduleConfig, DEFAULT_SLOT_SCHEDULE, getStoredSlotSchedule } from '../types';
+import { Facility, FacilityReservation } from '../types';
 
 import { StatusAnimationModal } from '../components/ui/StatusAnimationModal';
 
@@ -61,12 +61,30 @@ export function ParksModule() {
     status: 'Available', amenities: '',
     location: 'Public Recreation Ground Sector',
     image_url: '',
-    image_url_2: ''
+    image_url_2: '',
+    morning_start: '08:00 AM',
+    morning_end: '12:00 PM',
+    morning_enabled: true,
+    afternoon_start: '01:00 PM',
+    afternoon_end: '05:00 PM',
+    afternoon_enabled: true,
+    wholeday_enabled: true
   });
 
   const openAddPark = () => {
     setEditingPark(null);
-    setParkForm({ name: '', category: 'Park & Recreation', capacity: '300', hourly_rate: '0', status: 'Available', amenities: '', location: 'Public Recreation Ground Sector', image_url: '', image_url_2: '' });
+    setParkForm({
+      name: '', category: 'Park & Recreation', capacity: '300', hourly_rate: '0',
+      status: 'Available', amenities: '', location: 'Public Recreation Ground Sector',
+      image_url: '', image_url_2: '',
+      morning_start: '06:00 AM',
+      morning_end: '11:00 AM',
+      morning_enabled: true,
+      afternoon_start: '01:00 PM',
+      afternoon_end: '06:00 PM',
+      afternoon_enabled: true,
+      wholeday_enabled: true
+    });
     setIsParkFormOpen(true);
   };
 
@@ -81,7 +99,14 @@ export function ParksModule() {
       amenities: p.amenities || '',
       location: p.location || 'Public Recreation Ground Sector',
       image_url: p.image_url || '',
-      image_url_2: p.image_url_2 || ''
+      image_url_2: p.image_url_2 || '',
+      morning_start: p.morning_start || '06:00 AM',
+      morning_end: p.morning_end || '11:00 AM',
+      morning_enabled: p.morning_enabled !== false,
+      afternoon_start: p.afternoon_start || '01:00 PM',
+      afternoon_end: p.afternoon_end || '06:00 PM',
+      afternoon_enabled: p.afternoon_enabled !== false,
+      wholeday_enabled: p.wholeday_enabled !== false
     });
     setIsParkFormOpen(true);
   };
@@ -111,7 +136,14 @@ export function ParksModule() {
         capacity: parseInt(parkForm.capacity) || 100,
         hourly_rate: hourlyRate,
         morning_rate: hourlyRate,
-        afternoon_rate: hourlyRate
+        afternoon_rate: hourlyRate,
+        morning_start: parkForm.morning_start,
+        morning_end: parkForm.morning_end,
+        morning_enabled: parkForm.morning_enabled,
+        afternoon_start: parkForm.afternoon_start,
+        afternoon_end: parkForm.afternoon_end,
+        afternoon_enabled: parkForm.afternoon_enabled,
+        wholeday_enabled: parkForm.wholeday_enabled
       };
       if (editingPark) {
         await updateFacility(editingPark.id, payload);
@@ -207,7 +239,7 @@ export function ParksModule() {
     setEditingEquipIdx(null);
   };
 
-  // Time Slot Schedule Configuration for Parks (dynamically reflects on Citizen booking side)
+  // Time Slot Options for individual park settings
   const TIME_OPTIONS = [
     '06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM',
     '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
@@ -216,33 +248,6 @@ export function ParksModule() {
     '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM', '08:30 PM',
     '09:00 PM', '09:30 PM', '10:00 PM'
   ];
-
-  const [slotSchedule, setSlotSchedule] = useState<SlotScheduleConfig>(() => getStoredSlotSchedule('parks'));
-  const [isSlotManagerOpen, setIsSlotManagerOpen] = useState(false);
-  const [isSlotSaving, setIsSlotSaving] = useState(false);
-
-  const saveSlotSchedule = () => {
-    setIsSlotSaving(true);
-    localStorage.setItem('govserve_slots_parks', JSON.stringify(slotSchedule));
-    window.dispatchEvent(new Event('govserve_slots_updated'));
-    window.dispatchEvent(new Event('govserve_data_updated'));
-    setTimeout(() => {
-      setIsSlotSaving(false);
-      setAnimModal({
-        isOpen: true,
-        type: 'success',
-        title: '✓ Park Slot Schedule Saved',
-        message: 'Morning, Afternoon and Whole Day time slot settings for Parks & Recreation have been updated and are now live on the Citizen Booking portal.'
-      });
-    }, 200);
-  };
-
-  const resetSlotSchedule = () => {
-    setSlotSchedule(DEFAULT_SLOT_SCHEDULE);
-    localStorage.setItem('govserve_slots_parks', JSON.stringify(DEFAULT_SLOT_SCHEDULE));
-    window.dispatchEvent(new Event('govserve_slots_updated'));
-    window.dispatchEvent(new Event('govserve_data_updated'));
-  };
 
   const loadData = async () => {
     try {
@@ -492,12 +497,31 @@ export function ParksModule() {
                       </span>
                     </div>
 
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[10px] space-y-1.5">
+                      <div className="flex items-center justify-between font-bold text-slate-700">
+                        <span className="flex items-center gap-1">⏱️ Citizen Time Slots:</span>
+                        <span className="text-emerald-700 font-extrabold uppercase text-[9px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Per-Park</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>🌅 Morning:</span>
+                        <span className="font-semibold text-slate-800">{p.morning_enabled === false ? 'Disabled' : `${p.morning_start || '06:00 AM'} – ${p.morning_end || '11:00 AM'}`}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>☀️ Afternoon:</span>
+                        <span className="font-semibold text-slate-800">{p.afternoon_enabled === false ? 'Disabled' : `${p.afternoon_start || '01:00 PM'} – ${p.afternoon_end || '06:00 PM'}`}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>🏛️ Whole Day:</span>
+                        <span className="font-semibold text-slate-800">{p.wholeday_enabled === false ? 'Disabled' : '24 Hours (Continuous)'}</span>
+                      </div>
+                    </div>
+
                     <div className="flex gap-2">
                       <button
                         onClick={() => openEditPark(p)}
                         className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors"
                       >
-                        <Pencil className="w-3.5 h-3.5" /> Edit
+                        <Clock className="w-3.5 h-3.5" /> Edit Time Slots
                       </button>
                       <button
                         onClick={() => handleDeletePark(p)}
@@ -510,227 +534,6 @@ export function ParksModule() {
                 </Card>
               );
             })}
-          </div>
-
-          {/* Time Slot Schedule Configuration Card for Parks */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-soft overflow-hidden">
-            <div
-              className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
-              onClick={() => setIsSlotManagerOpen(v => !v)}
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg">
-                  <Clock className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-slate-900">Parks Time Slot Schedule & Operating Hours Settings</h3>
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Live Sync to Citizens
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">
-                    Morning: {slotSchedule.morning.enabled ? `${slotSchedule.morning.start} – ${slotSchedule.morning.end}` : 'Disabled'} • Afternoon: {slotSchedule.afternoon.enabled ? `${slotSchedule.afternoon.start} – ${slotSchedule.afternoon.end}` : 'Disabled'} • Whole Day: 24 Hours
-                  </p>
-                </div>
-              </div>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                {isSlotManagerOpen ? '▲ Collapse' : '▼ Manage Time Slots'}
-              </span>
-            </div>
-
-            {isSlotManagerOpen && (
-              <div className="border-t border-slate-200 p-4 space-y-4 bg-slate-50/50">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {/* Morning Slot Config */}
-                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base">🌅</span>
-                        <span className="text-xs font-bold text-slate-900">Morning Slot</span>
-                      </div>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={slotSchedule.morning.enabled}
-                          onChange={e => setSlotSchedule(prev => ({
-                            ...prev,
-                            morning: { ...prev.morning, enabled: e.target.checked }
-                          }))}
-                          className="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
-                        />
-                        <span className={`text-[10px] font-bold ${slotSchedule.morning.enabled ? 'text-emerald-700' : 'text-slate-400'}`}>
-                          {slotSchedule.morning.enabled ? 'Active' : 'Disabled'}
-                        </span>
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Start Time</label>
-                        <select
-                          value={slotSchedule.morning.start}
-                          onChange={e => setSlotSchedule(prev => ({
-                            ...prev,
-                            morning: { ...prev.morning, start: e.target.value }
-                          }))}
-                          disabled={!slotSchedule.morning.enabled}
-                          className="w-full text-xs p-1.5 rounded-lg border border-slate-200 bg-slate-50 font-medium disabled:opacity-50"
-                        >
-                          {TIME_OPTIONS.map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">End Time</label>
-                        <select
-                          value={slotSchedule.morning.end}
-                          onChange={e => setSlotSchedule(prev => ({
-                            ...prev,
-                            morning: { ...prev.morning, end: e.target.value }
-                          }))}
-                          disabled={!slotSchedule.morning.enabled}
-                          className="w-full text-xs p-1.5 rounded-lg border border-slate-200 bg-slate-50 font-medium disabled:opacity-50"
-                        >
-                          {TIME_OPTIONS.map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
-                      <span>Slot Duration:</span>
-                      <span className="font-bold text-emerald-900">
-                        {calculateBookingHours(slotSchedule.morning.start, slotSchedule.morning.end)} Hours
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Afternoon Slot Config */}
-                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base">☀️</span>
-                        <span className="text-xs font-bold text-slate-900">Afternoon Slot</span>
-                      </div>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={slotSchedule.afternoon.enabled}
-                          onChange={e => setSlotSchedule(prev => ({
-                            ...prev,
-                            afternoon: { ...prev.afternoon, enabled: e.target.checked }
-                          }))}
-                          className="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
-                        />
-                        <span className={`text-[10px] font-bold ${slotSchedule.afternoon.enabled ? 'text-emerald-700' : 'text-slate-400'}`}>
-                          {slotSchedule.afternoon.enabled ? 'Active' : 'Disabled'}
-                        </span>
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Start Time</label>
-                        <select
-                          value={slotSchedule.afternoon.start}
-                          onChange={e => setSlotSchedule(prev => ({
-                            ...prev,
-                            afternoon: { ...prev.afternoon, start: e.target.value }
-                          }))}
-                          disabled={!slotSchedule.afternoon.enabled}
-                          className="w-full text-xs p-1.5 rounded-lg border border-slate-200 bg-slate-50 font-medium disabled:opacity-50"
-                        >
-                          {TIME_OPTIONS.map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">End Time</label>
-                        <select
-                          value={slotSchedule.afternoon.end}
-                          onChange={e => setSlotSchedule(prev => ({
-                            ...prev,
-                            afternoon: { ...prev.afternoon, end: e.target.value }
-                          }))}
-                          disabled={!slotSchedule.afternoon.enabled}
-                          className="w-full text-xs p-1.5 rounded-lg border border-slate-200 bg-slate-50 font-medium disabled:opacity-50"
-                        >
-                          {TIME_OPTIONS.map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
-                      <span>Slot Duration:</span>
-                      <span className="font-bold text-emerald-900">
-                        {calculateBookingHours(slotSchedule.afternoon.start, slotSchedule.afternoon.end)} Hours
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Whole Day Slot Config */}
-                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base">🏛️</span>
-                        <span className="text-xs font-bold text-slate-900">Whole Day Slot</span>
-                      </div>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={slotSchedule.wholeDay.enabled}
-                          onChange={e => setSlotSchedule(prev => ({
-                            ...prev,
-                            wholeDay: { ...prev.wholeDay, enabled: e.target.checked }
-                          }))}
-                          className="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
-                        />
-                        <span className={`text-[10px] font-bold ${slotSchedule.wholeDay.enabled ? 'text-emerald-700' : 'text-slate-400'}`}>
-                          {slotSchedule.wholeDay.enabled ? 'Active' : 'Disabled'}
-                        </span>
-                      </label>
-                    </div>
-
-                    <div className="p-2 rounded-lg bg-emerald-50/70 border border-emerald-100 text-center">
-                      <span className="text-[10px] font-bold text-emerald-900 uppercase tracking-wide">Continuous Access</span>
-                      <p className="text-xs font-black text-emerald-950 mt-0.5">24 Hours / Day</p>
-                      <p className="text-[9px] text-emerald-700 mt-1">Calculates at: 24 hrs × Standard Hourly Rate</p>
-                    </div>
-
-                    <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
-                      <span>Rate Scheme:</span>
-                      <span className="font-bold text-emerald-900">24 × Hourly Rate</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-center justify-between pt-2">
-                  <button
-                    type="button"
-                    onClick={resetSlotSchedule}
-                    className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline"
-                  >
-                    Reset to Standard Defaults
-                  </button>
-                  <button
-                    type="button"
-                    onClick={saveSlotSchedule}
-                    disabled={isSlotSaving}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    {isSlotSaving ? 'Saving Changes...' : 'Save Time Slot Settings'}
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Parks Equipment Manager Section */}
@@ -1349,6 +1152,130 @@ export function ParksModule() {
                 placeholder="0 for free ground access"
               />
               <p className="text-[10px] text-slate-400 mt-0.5">Applied per hour across morning, afternoon, and 24h whole day bookings.</p>
+            </div>
+          </div>
+
+          {/* Time Slot Selection Controls (Controls What Times Citizens Can Book) */}
+          <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-emerald-100 pb-1.5">
+              <span className="font-bold text-emerald-950 text-xs flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                Time Slot Selection (Controls What Times Citizens Can Book)
+              </span>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                Reflected in Citizen Side
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              {/* Morning Slot */}
+              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 text-[11px]">🌅 Morning Slot</span>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={parkForm.morning_enabled}
+                      onChange={e => setParkForm(prev => ({ ...prev, morning_enabled: e.target.checked }))}
+                      className="rounded text-emerald-600 w-3 h-3"
+                    />
+                    <span className="text-[10px] font-semibold text-slate-600">Available</span>
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block">Start Time</label>
+                    <select
+                      value={parkForm.morning_start}
+                      onChange={e => setParkForm(prev => ({ ...prev, morning_start: e.target.value }))}
+                      disabled={!parkForm.morning_enabled}
+                      className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
+                    >
+                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block">End Time</label>
+                    <select
+                      value={parkForm.morning_end}
+                      onChange={e => setParkForm(prev => ({ ...prev, morning_end: e.target.value }))}
+                      disabled={!parkForm.morning_enabled}
+                      className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
+                    >
+                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-[9px] text-slate-500">
+                  Citizen sees: <strong className="text-emerald-900">{parkForm.morning_enabled ? `${parkForm.morning_start} – ${parkForm.morning_end}` : 'Not Available'}</strong>
+                </p>
+              </div>
+
+              {/* Afternoon Slot */}
+              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 text-[11px]">☀️ Afternoon Slot</span>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={parkForm.afternoon_enabled}
+                      onChange={e => setParkForm(prev => ({ ...prev, afternoon_enabled: e.target.checked }))}
+                      className="rounded text-emerald-600 w-3 h-3"
+                    />
+                    <span className="text-[10px] font-semibold text-slate-600">Available</span>
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block">Start Time</label>
+                    <select
+                      value={parkForm.afternoon_start}
+                      onChange={e => setParkForm(prev => ({ ...prev, afternoon_start: e.target.value }))}
+                      disabled={!parkForm.afternoon_enabled}
+                      className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
+                    >
+                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block">End Time</label>
+                    <select
+                      value={parkForm.afternoon_end}
+                      onChange={e => setParkForm(prev => ({ ...prev, afternoon_end: e.target.value }))}
+                      disabled={!parkForm.afternoon_enabled}
+                      className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
+                    >
+                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-[9px] text-slate-500">
+                  Citizen sees: <strong className="text-emerald-900">{parkForm.afternoon_enabled ? `${parkForm.afternoon_start} – ${parkForm.afternoon_end}` : 'Not Available'}</strong>
+                </p>
+              </div>
+
+              {/* Whole Day Slot */}
+              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 space-y-2 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 text-[11px]">🏛️ Whole Day Slot</span>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={parkForm.wholeday_enabled}
+                      onChange={e => setParkForm(prev => ({ ...prev, wholeday_enabled: e.target.checked }))}
+                      className="rounded text-emerald-600 w-3 h-3"
+                    />
+                    <span className="text-[10px] font-semibold text-slate-600">Available</span>
+                  </label>
+                </div>
+                <div className="p-2 rounded bg-emerald-50/70 border border-emerald-100 text-center">
+                  <span className="text-[10px] font-bold text-emerald-950">24 Hours / Day</span>
+                  <p className="text-[9px] text-emerald-700">Calculates as 24 × Hourly Rate</p>
+                </div>
+                <p className="text-[9px] text-slate-500">
+                  Citizen sees: <strong className="text-emerald-900">{parkForm.wholeday_enabled ? '🏛️ Whole Day (24 Hours)' : 'Not Available'}</strong>
+                </p>
+              </div>
             </div>
           </div>
           <div>

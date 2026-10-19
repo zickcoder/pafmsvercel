@@ -23,15 +23,20 @@ CREATE TABLE IF NOT EXISTS public.users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. FACILITIES & PARKS TABLE
+-- 2. FACILITIES & PARKS TABLE (Per Facility / Park Custom Time Slot Controls)
 CREATE TABLE IF NOT EXISTS public.facilities (
   id SERIAL PRIMARY KEY,
   name VARCHAR(150) NOT NULL,
   category VARCHAR(50) NOT NULL,
   capacity INT DEFAULT 50,
   hourly_rate NUMERIC(10, 2) DEFAULT 0,
-  morning_rate NUMERIC(10, 2) DEFAULT 0,
-  afternoon_rate NUMERIC(10, 2) DEFAULT 0,
+  morning_start VARCHAR(20) DEFAULT '08:00 AM',
+  morning_end VARCHAR(20) DEFAULT '12:00 PM',
+  morning_enabled BOOLEAN DEFAULT true,
+  afternoon_start VARCHAR(20) DEFAULT '01:00 PM',
+  afternoon_end VARCHAR(20) DEFAULT '05:00 PM',
+  afternoon_enabled BOOLEAN DEFAULT true,
+  wholeday_enabled BOOLEAN DEFAULT true,
   location VARCHAR(255) NOT NULL,
   amenities TEXT DEFAULT 'Sound System, Aircon, Chairs, Stage',
   status VARCHAR(50) DEFAULT 'Available',
@@ -39,6 +44,15 @@ CREATE TABLE IF NOT EXISTS public.facilities (
   image_url_2 TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Ensure columns exist if table was already created
+ALTER TABLE public.facilities ADD COLUMN IF NOT EXISTS morning_start VARCHAR(20) DEFAULT '08:00 AM';
+ALTER TABLE public.facilities ADD COLUMN IF NOT EXISTS morning_end VARCHAR(20) DEFAULT '12:00 PM';
+ALTER TABLE public.facilities ADD COLUMN IF NOT EXISTS morning_enabled BOOLEAN DEFAULT true;
+ALTER TABLE public.facilities ADD COLUMN IF NOT EXISTS afternoon_start VARCHAR(20) DEFAULT '01:00 PM';
+ALTER TABLE public.facilities ADD COLUMN IF NOT EXISTS afternoon_end VARCHAR(20) DEFAULT '05:00 PM';
+ALTER TABLE public.facilities ADD COLUMN IF NOT EXISTS afternoon_enabled BOOLEAN DEFAULT true;
+ALTER TABLE public.facilities ADD COLUMN IF NOT EXISTS wholeday_enabled BOOLEAN DEFAULT true;
 
 -- 3. FACILITY RESERVATIONS TABLE
 CREATE TABLE IF NOT EXISTS public.facility_reservations (
@@ -223,12 +237,12 @@ INSERT INTO public.users (name, email, password, pin, role, department, phone, a
 VALUES ('Juan M. Dela Cruz', 'juan.delacruz@citizen.gov.ph', 'citizen123', '123456', 'Citizen', 'Resident / Brgy. 178', '+63 917 123 4567', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80')
 ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, pin = EXCLUDED.pin, role = EXCLUDED.role;
 
--- Facilities & Parks
-INSERT INTO public.facilities (name, category, capacity, hourly_rate, morning_rate, afternoon_rate, location, amenities, status, image_url) 
+-- Facilities & Parks (Per-facility morning and afternoon slot schedules)
+INSERT INTO public.facilities (name, category, capacity, hourly_rate, morning_start, morning_end, morning_enabled, afternoon_start, afternoon_end, afternoon_enabled, wholeday_enabled, location, amenities, status, image_url) 
 VALUES
-('Barangay 178 Multi-Purpose Civic Center', 'Government Facility', 350, 500.00, 500.00, 500.00, 'Civic Complex, Mindanao Ave.', 'Central Aircon, Full PA Sound System, Stage, 300 Chairs, Generator Backup', 'Available', 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=500&auto=format&fit=crop&q=80'),
-('Camarin Green Urban Recreation Park', 'Park & Recreation', 500, 0.00, 0.00, 0.00, 'Camarin Road Sector 3', 'Jogging Trail, Children Playground, Gazebo, Covered Picnic Sheds, Solar Lights', 'Available', 'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=500&auto=format&fit=crop&q=80'),
-('Purok 7 Community Amphitheater & Plaza', 'Park & Recreation', 400, 250.00, 250.00, 250.00, 'Purok 7 Hillsview', 'Open-Air Stage, Tiered Seating, Ambient Garden Lighting, Perimeter Fence', 'Available', 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=500&auto=format&fit=crop&q=80')
+('Barangay 178 Multi-Purpose Civic Center', 'Government Facility', 350, 500.00, '08:00 AM', '12:00 PM', true, '01:00 PM', '05:00 PM', true, true, 'Civic Complex, Mindanao Ave.', 'Central Aircon, Full PA Sound System, Stage, 300 Chairs, Generator Backup', 'Available', 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=500&auto=format&fit=crop&q=80'),
+('Camarin Green Urban Recreation Park', 'Park & Recreation', 500, 0.00, '06:00 AM', '11:00 AM', true, '01:00 PM', '06:00 PM', true, true, 'Camarin Road Sector 3', 'Jogging Trail, Children Playground, Gazebo, Covered Picnic Sheds, Solar Lights', 'Available', 'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=500&auto=format&fit=crop&q=80'),
+('Purok 7 Community Amphitheater & Plaza', 'Park & Recreation', 400, 250.00, '07:00 AM', '12:00 PM', true, '02:00 PM', '07:00 PM', true, true, 'Purok 7 Hillsview', 'Open-Air Stage, Tiered Seating, Ambient Garden Lighting, Perimeter Fence', 'Available', 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=500&auto=format&fit=crop&q=80')
 ON CONFLICT DO NOTHING;
 
 -- Columbarium Niches (9 Rows x 10 Columns = 90 Niches in Columbarium Wall Alpha)

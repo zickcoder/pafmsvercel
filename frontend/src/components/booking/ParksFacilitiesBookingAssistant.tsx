@@ -32,7 +32,7 @@ import {
   calculateBookingHours
 } from '../../lib/api';
 import { compressImage } from '../../lib/imageCompressor';
-import { Facility, FacilityReservation, SlotScheduleConfig, DEFAULT_SLOT_SCHEDULE, getStoredSlotSchedule } from '../../types';
+import { Facility, FacilityReservation } from '../../types';
 
 interface BookingAssistantProps {
   mode?: 'parks' | 'facility' | 'both';
@@ -228,39 +228,32 @@ export function ParksFacilitiesBookingAssistant({
     return facilities.find(f => f.id === selectedFacilityId) || facilities[0] || null;
   }, [facilities, selectedFacilityId]);
 
-  // ─── Time Slot Schedule Configuration (dynamically reflects admin settings) ───
-  const [slotConfig, setSlotConfig] = useState<SlotScheduleConfig>(() =>
-    getStoredSlotSchedule(mode === 'parks' ? 'parks' : 'facility')
-  );
+  // ─── Per-Facility / Per-Park Time Slot Schedule (controlled per venue in Admin side) ───
+  const morningStart = selectedFacility?.morning_start || (mode === 'parks' ? '06:00 AM' : '08:00 AM');
+  const morningEnd = selectedFacility?.morning_end || (mode === 'parks' ? '11:00 AM' : '12:00 PM');
+  const morningEnabled = selectedFacility ? selectedFacility.morning_enabled !== false : true;
 
-  useEffect(() => {
-    const updateSlots = () => {
-      setSlotConfig(getStoredSlotSchedule(mode === 'parks' ? 'parks' : 'facility'));
-    };
-    updateSlots();
-    window.addEventListener('govserve_slots_updated', updateSlots);
-    window.addEventListener('govserve_data_updated', updateSlots);
-    return () => {
-      window.removeEventListener('govserve_slots_updated', updateSlots);
-      window.removeEventListener('govserve_data_updated', updateSlots);
-    };
-  }, [mode]);
+  const afternoonStart = selectedFacility?.afternoon_start || '01:00 PM';
+  const afternoonEnd = selectedFacility?.afternoon_end || (mode === 'parks' ? '06:00 PM' : '05:00 PM');
+  const afternoonEnabled = selectedFacility ? selectedFacility.afternoon_enabled !== false : true;
+
+  const wholeDayEnabled = selectedFacility ? selectedFacility.wholeday_enabled !== false : true;
 
   const morningHours = useMemo(() => {
-    return calculateBookingHours(slotConfig.morning.start, slotConfig.morning.end) || 4;
-  }, [slotConfig.morning.start, slotConfig.morning.end]);
+    return calculateBookingHours(morningStart, morningEnd) || 4;
+  }, [morningStart, morningEnd]);
 
   const afternoonHours = useMemo(() => {
-    return calculateBookingHours(slotConfig.afternoon.start, slotConfig.afternoon.end) || 4;
-  }, [slotConfig.afternoon.start, slotConfig.afternoon.end]);
+    return calculateBookingHours(afternoonStart, afternoonEnd) || 4;
+  }, [afternoonStart, afternoonEnd]);
 
   const activeSlots: SlotType[] = useMemo(() => {
     const list: SlotType[] = [];
-    if (slotConfig.morning.enabled) list.push('Morning Slot');
-    if (slotConfig.afternoon.enabled) list.push('Afternoon Slot');
-    if (slotConfig.wholeDay.enabled) list.push('Whole Day Slot');
+    if (morningEnabled) list.push('Morning Slot');
+    if (afternoonEnabled) list.push('Afternoon Slot');
+    if (wholeDayEnabled) list.push('Whole Day Slot');
     return list.length > 0 ? list : ['Morning Slot', 'Afternoon Slot', 'Whole Day Slot'];
-  }, [slotConfig]);
+  }, [morningEnabled, afternoonEnabled, wholeDayEnabled]);
 
   // Ensure selected slot is valid and active
   useEffect(() => {
@@ -271,10 +264,10 @@ export function ParksFacilitiesBookingAssistant({
 
   // Dynamic slot definition based on admin time controls
   const SLOT_CONFIG: Record<SlotType, { start: string; end: string; hours: number; enabled: boolean }> = useMemo(() => ({
-    'Morning Slot':   { start: slotConfig.morning.start, end: slotConfig.morning.end, hours: morningHours, enabled: slotConfig.morning.enabled },
-    'Afternoon Slot': { start: slotConfig.afternoon.start, end: slotConfig.afternoon.end, hours: afternoonHours, enabled: slotConfig.afternoon.enabled },
-    'Whole Day Slot': { start: '12:00 AM', end: '11:59 PM', hours: 24, enabled: slotConfig.wholeDay.enabled },
-  }), [slotConfig, morningHours, afternoonHours]);
+    'Morning Slot':   { start: morningStart, end: morningEnd, hours: morningHours, enabled: morningEnabled },
+    'Afternoon Slot': { start: afternoonStart, end: afternoonEnd, hours: afternoonHours, enabled: afternoonEnabled },
+    'Whole Day Slot': { start: '12:00 AM', end: '11:59 PM', hours: 24, enabled: wholeDayEnabled },
+  }), [morningStart, morningEnd, morningHours, morningEnabled, afternoonStart, afternoonEnd, afternoonHours, afternoonEnabled, wholeDayEnabled]);
 
   /** Returns the fee for a slot strictly based on admin per-hour rate (Whole Day = 24 * hourly_rate) */
   const getSlotFee = (slot: SlotType, facility: Facility | null): number => {

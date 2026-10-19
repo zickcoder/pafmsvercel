@@ -86,6 +86,13 @@ export interface Facility {
   status: 'Available' | 'Maintenance' | 'Reserved';
   image_url?: string;
   image_url_2?: string;
+  morning_start?: string;
+  morning_end?: string;
+  morning_enabled?: boolean;
+  afternoon_start?: string;
+  afternoon_end?: string;
+  afternoon_enabled?: boolean;
+  wholeday_enabled?: boolean;
 }
 
 export interface FacilityReservation {

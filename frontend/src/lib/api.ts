@@ -115,6 +115,13 @@ const DEFAULT_FACILITIES = [
     category: 'Government Facility',
     capacity: 350,
     hourly_rate: 500.00,
+    morning_start: '08:00 AM',
+    morning_end: '12:00 PM',
+    morning_enabled: true,
+    afternoon_start: '01:00 PM',
+    afternoon_end: '05:00 PM',
+    afternoon_enabled: true,
+    wholeday_enabled: true,
     location: 'Civic Complex, Mindanao Ave.',
     amenities: 'Central Aircon, Full PA Sound System, Stage, 300 Chairs, Generator Backup',
     status: 'Available',
@@ -127,6 +134,13 @@ const DEFAULT_FACILITIES = [
     category: 'Park & Recreation',
     capacity: 500,
     hourly_rate: 0.00,
+    morning_start: '06:00 AM',
+    morning_end: '11:00 AM',
+    morning_enabled: true,
+    afternoon_start: '01:00 PM',
+    afternoon_end: '06:00 PM',
+    afternoon_enabled: true,
+    wholeday_enabled: true,
     location: 'Camarin Road Sector 3',
     amenities: 'Jogging Trail, Children Playground, Gazebo, Covered Picnic Sheds, Solar Lights',
     status: 'Available',
@@ -139,6 +153,13 @@ const DEFAULT_FACILITIES = [
     category: 'Park & Recreation',
     capacity: 400,
     hourly_rate: 250.00,
+    morning_start: '07:00 AM',
+    morning_end: '12:00 PM',
+    morning_enabled: true,
+    afternoon_start: '02:00 PM',
+    afternoon_end: '07:00 PM',
+    afternoon_enabled: true,
+    wholeday_enabled: true,
     location: 'Purok 7 Hillsview',
     amenities: 'Open-Air Stage, Tiered Seating, Ambient Garden Lighting, Perimeter Fence',
     status: 'Available',
@@ -450,13 +471,20 @@ export async function fetchStats() {
 }
 
 function prepareFacilityForDb(payload: any) {
-  // Store images and slot rates in __FAC_META__ in amenities for backward compatibility
+  // Store images, slot rates, and controlled time slot schedules in __FAC_META__ in amenities for persistence across all environments
   const meta: any = {
     image_url: payload.image_url || '',
     image_url_2: payload.image_url_2 || '',
   };
   if (payload.morning_rate !== undefined) meta.morning_rate = Number(payload.morning_rate);
   if (payload.afternoon_rate !== undefined) meta.afternoon_rate = Number(payload.afternoon_rate);
+  if (payload.morning_start) meta.morning_start = payload.morning_start;
+  if (payload.morning_end) meta.morning_end = payload.morning_end;
+  if (payload.morning_enabled !== undefined) meta.morning_enabled = payload.morning_enabled;
+  if (payload.afternoon_start) meta.afternoon_start = payload.afternoon_start;
+  if (payload.afternoon_end) meta.afternoon_end = payload.afternoon_end;
+  if (payload.afternoon_enabled !== undefined) meta.afternoon_enabled = payload.afternoon_enabled;
+  if (payload.wholeday_enabled !== undefined) meta.wholeday_enabled = payload.wholeday_enabled;
 
   let baseAmenities = (payload.amenities || '').split('__FAC_META__')[0].trim();
   baseAmenities += ` __FAC_META__${JSON.stringify(meta)}`;
@@ -495,6 +523,13 @@ function parseFacilityFromDb(f: any) {
   let cleanAmenities = f.amenities || '';
   let morningRate = f.morning_rate !== undefined && f.morning_rate !== null ? Number(f.morning_rate) : undefined;
   let afternoonRate = f.afternoon_rate !== undefined && f.afternoon_rate !== null ? Number(f.afternoon_rate) : undefined;
+  let morning_start = f.morning_start;
+  let morning_end = f.morning_end;
+  let morning_enabled = f.morning_enabled;
+  let afternoon_start = f.afternoon_start;
+  let afternoon_end = f.afternoon_end;
+  let afternoon_enabled = f.afternoon_enabled;
+  let wholeday_enabled = f.wholeday_enabled;
 
   if (cleanAmenities.includes('__FAC_META__')) {
     try {
@@ -507,6 +542,13 @@ function parseFacilityFromDb(f: any) {
       if (meta.image_url_2 !== undefined) img2 = meta.image_url_2 || '';
       if (meta.morning_rate !== undefined && morningRate === undefined) morningRate = Number(meta.morning_rate);
       if (meta.afternoon_rate !== undefined && afternoonRate === undefined) afternoonRate = Number(meta.afternoon_rate);
+      if (meta.morning_start !== undefined) morning_start = meta.morning_start;
+      if (meta.morning_end !== undefined) morning_end = meta.morning_end;
+      if (meta.morning_enabled !== undefined) morning_enabled = meta.morning_enabled;
+      if (meta.afternoon_start !== undefined) afternoon_start = meta.afternoon_start;
+      if (meta.afternoon_end !== undefined) afternoon_end = meta.afternoon_end;
+      if (meta.afternoon_enabled !== undefined) afternoon_enabled = meta.afternoon_enabled;
+      if (meta.wholeday_enabled !== undefined) wholeday_enabled = meta.wholeday_enabled;
     } catch {}
   }
 
@@ -521,7 +563,14 @@ function parseFacilityFromDb(f: any) {
     image_url_2: img2,
     hourly_rate: baseRate,
     morning_rate: morningRate,
-    afternoon_rate: afternoonRate
+    afternoon_rate: afternoonRate,
+    morning_start,
+    morning_end,
+    morning_enabled,
+    afternoon_start,
+    afternoon_end,
+    afternoon_enabled,
+    wholeday_enabled
   };
 }
 
