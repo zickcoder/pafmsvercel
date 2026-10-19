@@ -61,10 +61,10 @@ export function FacilitiesModule() {
     location: 'Civic Complex, Mindanao Ave.',
     image_url: '',
     image_url_2: '',
-    morning_start: '08:00 AM',
+    morning_start: '06:00 AM',
     morning_end: '12:00 PM',
     morning_enabled: true,
-    afternoon_start: '01:00 PM',
+    afternoon_start: '12:30 PM',
     afternoon_end: '05:00 PM',
     afternoon_enabled: true,
     wholeday_enabled: true
@@ -76,10 +76,10 @@ export function FacilitiesModule() {
       name: '', category: 'Government Facility', capacity: '100', hourly_rate: '500',
       status: 'Available', amenities: '', location: 'Civic Complex, Mindanao Ave.',
       image_url: '', image_url_2: '',
-      morning_start: '08:00 AM',
+      morning_start: '06:00 AM',
       morning_end: '12:00 PM',
       morning_enabled: true,
-      afternoon_start: '01:00 PM',
+      afternoon_start: '12:30 PM',
       afternoon_end: '05:00 PM',
       afternoon_enabled: true,
       wholeday_enabled: true
@@ -99,10 +99,10 @@ export function FacilitiesModule() {
       location: fac.location || 'Civic Complex, Mindanao Ave.',
       image_url: fac.image_url || '',
       image_url_2: fac.image_url_2 || '',
-      morning_start: fac.morning_start || '08:00 AM',
+      morning_start: '06:00 AM',
       morning_end: fac.morning_end || '12:00 PM',
       morning_enabled: fac.morning_enabled !== false,
-      afternoon_start: fac.afternoon_start || '01:00 PM',
+      afternoon_start: '12:30 PM',
       afternoon_end: fac.afternoon_end || '05:00 PM',
       afternoon_enabled: fac.afternoon_enabled !== false,
       wholeday_enabled: fac.wholeday_enabled !== false
@@ -240,13 +240,16 @@ export function FacilitiesModule() {
   };
 
   // Time Slot Options for individual facility settings
-  const TIME_OPTIONS = [
-    '06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM',
-    '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
-    '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM',
-    '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM',
-    '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM', '08:30 PM',
-    '09:00 PM', '09:30 PM', '10:00 PM'
+  // Morning end: 10:00 AM – 12:00 PM only
+  const MORNING_END_OPTIONS = [
+    '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM'
+  ];
+  // Afternoon end: 4:00 PM – 12:00 AM only
+  const AFTERNOON_END_OPTIONS = [
+    '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM',
+    '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM',
+    '08:00 PM', '08:30 PM', '09:00 PM', '09:30 PM',
+    '10:00 PM', '10:30 PM', '11:00 PM', '11:30 PM', '12:00 AM'
   ];
 
 
@@ -1151,14 +1154,9 @@ export function FacilitiesModule() {
                 <div className="grid grid-cols-2 gap-1.5">
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 uppercase block">Start Time</label>
-                    <select
-                      value={facilityForm.morning_start}
-                      onChange={e => setFacilityForm(prev => ({ ...prev, morning_start: e.target.value }))}
-                      disabled={!facilityForm.morning_enabled}
-                      className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
-                    >
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                    <div className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-100 text-slate-600 font-semibold disabled:opacity-50">
+                      06:00 AM <span className="text-[9px] text-slate-400 font-normal">(fixed)</span>
+                    </div>
                   </div>
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 uppercase block">End Time</label>
@@ -1168,12 +1166,12 @@ export function FacilitiesModule() {
                       disabled={!facilityForm.morning_enabled}
                       className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
                     >
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                      {MORNING_END_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                 </div>
                 <p className="text-[9px] text-slate-500">
-                  Citizen sees: <strong className="text-indigo-900">{facilityForm.morning_enabled ? `${facilityForm.morning_start} – ${facilityForm.morning_end}` : 'Not Available'}</strong>
+                  Citizen sees: <strong className="text-indigo-900">{facilityForm.morning_enabled ? `06:00 AM – ${facilityForm.morning_end}` : 'Not Available'}</strong>
                 </p>
               </div>
 
@@ -1194,14 +1192,9 @@ export function FacilitiesModule() {
                 <div className="grid grid-cols-2 gap-1.5">
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 uppercase block">Start Time</label>
-                    <select
-                      value={facilityForm.afternoon_start}
-                      onChange={e => setFacilityForm(prev => ({ ...prev, afternoon_start: e.target.value }))}
-                      disabled={!facilityForm.afternoon_enabled}
-                      className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
-                    >
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                    <div className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-100 text-slate-600 font-semibold">
+                      12:30 PM <span className="text-[9px] text-slate-400 font-normal">(fixed)</span>
+                    </div>
                   </div>
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 uppercase block">End Time</label>
@@ -1211,12 +1204,12 @@ export function FacilitiesModule() {
                       disabled={!facilityForm.afternoon_enabled}
                       className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
                     >
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                      {AFTERNOON_END_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                 </div>
                 <p className="text-[9px] text-slate-500">
-                  Citizen sees: <strong className="text-indigo-900">{facilityForm.afternoon_enabled ? `${facilityForm.afternoon_start} – ${facilityForm.afternoon_end}` : 'Not Available'}</strong>
+                  Citizen sees: <strong className="text-indigo-900">{facilityForm.afternoon_enabled ? `12:30 PM – ${facilityForm.afternoon_end}` : 'Not Available'}</strong>
                 </p>
               </div>
 

@@ -62,10 +62,10 @@ export function ParksModule() {
     location: 'Public Recreation Ground Sector',
     image_url: '',
     image_url_2: '',
-    morning_start: '08:00 AM',
+    morning_start: '06:00 AM',
     morning_end: '12:00 PM',
     morning_enabled: true,
-    afternoon_start: '01:00 PM',
+    afternoon_start: '12:30 PM',
     afternoon_end: '05:00 PM',
     afternoon_enabled: true,
     wholeday_enabled: true
@@ -80,7 +80,7 @@ export function ParksModule() {
       morning_start: '06:00 AM',
       morning_end: '11:00 AM',
       morning_enabled: true,
-      afternoon_start: '01:00 PM',
+      afternoon_start: '12:30 PM',
       afternoon_end: '06:00 PM',
       afternoon_enabled: true,
       wholeday_enabled: true
@@ -100,10 +100,10 @@ export function ParksModule() {
       location: p.location || 'Public Recreation Ground Sector',
       image_url: p.image_url || '',
       image_url_2: p.image_url_2 || '',
-      morning_start: p.morning_start || '06:00 AM',
+      morning_start: '06:00 AM',
       morning_end: p.morning_end || '11:00 AM',
       morning_enabled: p.morning_enabled !== false,
-      afternoon_start: p.afternoon_start || '01:00 PM',
+      afternoon_start: '12:30 PM',
       afternoon_end: p.afternoon_end || '06:00 PM',
       afternoon_enabled: p.afternoon_enabled !== false,
       wholeday_enabled: p.wholeday_enabled !== false
@@ -240,13 +240,16 @@ export function ParksModule() {
   };
 
   // Time Slot Options for individual park settings
-  const TIME_OPTIONS = [
-    '06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM',
-    '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
-    '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM',
-    '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM',
-    '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM', '08:30 PM',
-    '09:00 PM', '09:30 PM', '10:00 PM'
+  // Morning end: 10:00 AM – 12:00 PM only
+  const MORNING_END_OPTIONS = [
+    '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM'
+  ];
+  // Afternoon end: 4:00 PM – 12:00 AM only
+  const AFTERNOON_END_OPTIONS = [
+    '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM',
+    '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM',
+    '08:00 PM', '08:30 PM', '09:00 PM', '09:30 PM',
+    '10:00 PM', '10:30 PM', '11:00 PM', '11:30 PM', '12:00 AM'
   ];
 
   const loadData = async () => {
@@ -1185,14 +1188,9 @@ export function ParksModule() {
                 <div className="grid grid-cols-2 gap-1.5">
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 uppercase block">Start Time</label>
-                    <select
-                      value={parkForm.morning_start}
-                      onChange={e => setParkForm(prev => ({ ...prev, morning_start: e.target.value }))}
-                      disabled={!parkForm.morning_enabled}
-                      className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
-                    >
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                    <div className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-100 text-slate-600 font-semibold">
+                      06:00 AM <span className="text-[9px] text-slate-400 font-normal">(fixed)</span>
+                    </div>
                   </div>
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 uppercase block">End Time</label>
@@ -1202,12 +1200,12 @@ export function ParksModule() {
                       disabled={!parkForm.morning_enabled}
                       className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
                     >
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                      {MORNING_END_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                 </div>
                 <p className="text-[9px] text-slate-500">
-                  Citizen sees: <strong className="text-emerald-900">{parkForm.morning_enabled ? `${parkForm.morning_start} – ${parkForm.morning_end}` : 'Not Available'}</strong>
+                  Citizen sees: <strong className="text-emerald-900">{parkForm.morning_enabled ? `06:00 AM – ${parkForm.morning_end}` : 'Not Available'}</strong>
                 </p>
               </div>
 
@@ -1228,14 +1226,9 @@ export function ParksModule() {
                 <div className="grid grid-cols-2 gap-1.5">
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 uppercase block">Start Time</label>
-                    <select
-                      value={parkForm.afternoon_start}
-                      onChange={e => setParkForm(prev => ({ ...prev, afternoon_start: e.target.value }))}
-                      disabled={!parkForm.afternoon_enabled}
-                      className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
-                    >
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                    <div className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-100 text-slate-600 font-semibold">
+                      12:30 PM <span className="text-[9px] text-slate-400 font-normal">(fixed)</span>
+                    </div>
                   </div>
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 uppercase block">End Time</label>
@@ -1245,12 +1238,12 @@ export function ParksModule() {
                       disabled={!parkForm.afternoon_enabled}
                       className="w-full p-1 text-[11px] rounded border border-slate-200 bg-slate-50 disabled:opacity-50"
                     >
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                      {AFTERNOON_END_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                 </div>
                 <p className="text-[9px] text-slate-500">
-                  Citizen sees: <strong className="text-emerald-900">{parkForm.afternoon_enabled ? `${parkForm.afternoon_start} – ${parkForm.afternoon_end}` : 'Not Available'}</strong>
+                  Citizen sees: <strong className="text-emerald-900">{parkForm.afternoon_enabled ? `12:30 PM – ${parkForm.afternoon_end}` : 'Not Available'}</strong>
                 </p>
               </div>
 
