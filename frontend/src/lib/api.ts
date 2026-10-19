@@ -915,7 +915,23 @@ export async function createReservation(payload: any) {
   const normalizedName = payload.facility_name || matchedFac?.name || 'Municipal Venue';
   const normalizedLocation = payload.facility_location || matchedFac?.location || '';
   const normalizedRate = payload.hourly_rate ?? matchedFac?.hourly_rate ?? 0;
-  const equipmentText = Array.isArray(payload.special_equipment) ? payload.special_equipment.join(', ') : (payload.special_equipment || null);
+  // Strict Sunday restriction: Facilities and Parks are closed on Sundays
+  if (payload.event_date) {
+    const dStr = payload.event_date.split('T')[0];
+    const checkDate = new Date(dStr + 'T12:00:00');
+    if (checkDate.getDay() === 0) {
+      throw new Error('Bookings are not permitted on Sundays. Facilities and Parks are closed for maintenance.');
+    }
+  }
+  if (Array.isArray(payload.event_dates)) {
+    for (const dStr of payload.event_dates) {
+      const cleanDate = (dStr || '').split('T')[0];
+      const checkDate = new Date(cleanDate + 'T12:00:00');
+      if (checkDate.getDay() === 0) {
+        throw new Error('Bookings are not permitted on Sundays. Facilities and Parks are closed for maintenance.');
+      }
+    }
+  }
 
   // If this is a resubmission of an existing ticket
   const isResubmission = Boolean(payload.resubmitId || payload.resubmit_id || payload.is_resubmit);

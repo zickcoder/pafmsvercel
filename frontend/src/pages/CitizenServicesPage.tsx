@@ -160,7 +160,7 @@ export function CitizenServicesPage({ defaultTab = 'facility' }: CitizenServices
   const [parksEquipment, setParksEquipment] = useState<string[]>([]);
 
   // Parks-specific Step 2 fields (Activity Type, Event Name, LGU proof)
-  const [parksActivityType, setParksActivityType] = useState<'LGU Activity' | 'Sports Activity' | 'Other / Private Event'>('Sports Activity');
+  const [parksActivityType, setParksActivityType] = useState<'LGU Activity' | 'Sports Activity' | 'Other / Private Event'>('Other / Private Event');
   const [parksEventName, setParksEventName] = useState('');
   const [parksProofPhoto, setParksProofPhoto] = useState<{ url: string; name: string } | null>(null);
   const [parksProofUploading, setParksProofUploading] = useState(false);
