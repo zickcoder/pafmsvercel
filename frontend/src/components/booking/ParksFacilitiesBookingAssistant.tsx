@@ -1090,11 +1090,11 @@ export function ParksFacilitiesBookingAssistant({
               </div>
             )}
 
-            {/* Filter Controls Bar: 1. Year Selection & 2. Operating Days Filter (Removed months from below year selection) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+            {/* Filter Controls Bar: 1. Year, 2. Month, 3. Operating Days */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
               
               {/* 1. Year Selection */}
-              <div className="space-y-1">
+              <div className="md:col-span-3 space-y-1">
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
                   📅 1. Year Selection
                 </label>
@@ -1121,12 +1121,34 @@ export function ParksFacilitiesBookingAssistant({
                 </div>
               </div>
 
-              {/* 2. Operating Days Filter (Mon – Sat) */}
-              <div className="space-y-1">
+              {/* 2. Month Selection */}
+              <div className="md:col-span-4 space-y-1">
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                  🗂️ 2. Operating Days Filter (Mon – Sat)
+                  📆 2. Month Selection
                 </label>
-                <div className="grid grid-cols-3 gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
+                  className="w-full bg-white text-slate-800 font-bold text-xs rounded-xl px-3 py-2.5 border border-slate-200 focus:outline-none focus:border-emerald-600 shadow-2xs cursor-pointer"
+                >
+                  {MONTH_NAMES.map((m, idx) => {
+                    // Hide past months when current year is selected
+                    if (selectedYear === currentYear && idx < currentMonth) return null;
+                    return (
+                      <option key={idx} value={idx}>
+                        {m}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* 3. Day Filter (Operating Days Monday through Saturday) */}
+              <div className="md:col-span-5 space-y-1">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                  🗂️ 3. Operating Days Filter (Mon – Sat)
+                </label>
+                <div className="grid grid-cols-3 gap-1">
                   {[
                     { key: 'all', label: 'All Days (Mon–Sat)' },
                     { key: 'weekday', label: 'Weekdays' },
@@ -1136,10 +1158,10 @@ export function ParksFacilitiesBookingAssistant({
                       key={df.key}
                       type="button"
                       onClick={() => setDayFilter(df.key as DayFilterType)}
-                      className={`py-1.5 px-1 text-center rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      className={`py-2 px-1 text-center rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
                         dayFilter === df.key
-                          ? 'bg-slate-900 text-white shadow-xs'
-                          : 'text-slate-600 hover:bg-slate-100'
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       {df.label}
@@ -1150,64 +1172,16 @@ export function ParksFacilitiesBookingAssistant({
             </div>
 
             {/* Schedule Display: Render Availability Matrix distinguishing Weekday vs Weekend */}
-            <div className="space-y-3">
-              {/* Sleek Month Navigator Bar directly above the calendar grid */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-gradient-to-r from-slate-100/90 via-slate-50 to-slate-100/90 rounded-2xl border border-slate-200">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <p className="font-extrabold text-slate-800">
+                  {MONTH_NAMES[selectedMonth]} {selectedYear} Availability Matrix
+                  {selectedFacility && <span className="text-emerald-700 font-semibold ml-1.5">— {selectedFacility.name}</span>}
+                </p>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedMonth === 0) {
-                        if (selectedYear > currentYear) {
-                          setSelectedYear(y => y - 1);
-                          setSelectedMonth(11);
-                        }
-                      } else {
-                        if (!(selectedYear === currentYear && selectedMonth <= currentMonth)) {
-                          setSelectedMonth(m => m - 1);
-                        }
-                      }
-                    }}
-                    disabled={selectedYear === currentYear && selectedMonth <= currentMonth}
-                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
-                    title="Previous Month"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-black text-slate-900 tracking-tight font-display">
-                      {MONTH_NAMES[selectedMonth]} {selectedYear}
-                    </span>
-                    {selectedFacility && (
-                      <span className="hidden md:inline-block text-xs font-semibold text-slate-500 truncate max-w-xs">
-                        — {selectedFacility.name}
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedMonth === 11) {
-                        setSelectedYear(y => y + 1);
-                        setSelectedMonth(0);
-                      } else {
-                        setSelectedMonth(m => m + 1);
-                      }
-                    }}
-                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all shadow-2xs cursor-pointer"
-                    title="Next Month"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Right side: quick jump dropdown & active legend indicator */}
-                <div className="flex items-center gap-2 justify-between sm:justify-end">
                   {legendFilter !== 'all' && (
-                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-900 text-white flex items-center gap-1.5 animate-fade-in shadow-2xs">
-                      <span>Showing {legendFilter.toUpperCase()} only</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white flex items-center gap-1 shadow-2xs animate-fade-in">
+                      <span>{legendFilter.toUpperCase()} only</span>
                       <button
                         type="button"
                         onClick={() => setLegendFilter('all')}
@@ -1218,20 +1192,9 @@ export function ParksFacilitiesBookingAssistant({
                       </button>
                     </span>
                   )}
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
-                    className="bg-white text-slate-800 font-bold text-xs rounded-xl px-3 py-2 border border-slate-200 shadow-2xs focus:outline-none focus:border-emerald-600"
-                  >
-                    {MONTH_NAMES.map((m, idx) => {
-                      if (selectedYear === currentYear && idx < currentMonth) return null;
-                      return (
-                        <option key={idx} value={idx}>
-                          {m}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <span className="text-[11px] text-slate-500 hidden sm:inline">
+                    Click any operating day below to pick date and slots
+                  </span>
                 </div>
               </div>
 
